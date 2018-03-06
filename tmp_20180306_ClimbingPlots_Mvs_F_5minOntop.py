@@ -5,35 +5,6 @@ Created on Tue Mar  6 14:25:20 2018
 
 @author: aman
 """
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Mar  5 19:48:37 2018
-
-@author: aman
-"""
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Feb 28 02:25:32 2018
-
-@author: aman
-"""
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Feb 19 22:06:45 2018
-
-@author: aman
-"""
-#!/usr/bin/env python2
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jan 13 00:57:22 2018
-
-@author: aman
-"""
-
 imgDatafolder = 'imageData'
 trackImExtension = '.jpeg'
 csvExt = '.csv'
@@ -834,22 +805,20 @@ nPlotStacks = 2
 figRatio = [3,1]
 figWidth = 7
 figHeight = 7/1.618
-tightLayout = True
-wSpace = 0.3
+tightLayout = False
+wSpace = 0.4
 hSpace = 0.15
-marginLeft = 0.15
+marginLeft = 0.05
 marginRight = 0.99
 marginTop = 0.97
-marginBottom = 0.15
+marginBottom = 0.07
 
-legendHorPos = -0.5
-legendVerPos = 1.07
+legendHorPos = 0.42
+legendVerPos = 1.058
 legendAxesRowSet = total5MinPlotIndex
 legendAxesRowGet = tSeriesPlotIndex
-
 legendAxesColSet = 4
 legendAxesColGet = 4
-
 
 nParamsToPlot = nParams-1
 
@@ -860,13 +829,14 @@ dataToPlot = [genotypeNTracks,
               genotypeStraight,
               genotypeGeoTacInd]
 
-ax00 = {'yticks': [0, 1, 2, 3, 4, 5] }
-ax10 = {'yticks': np.arange(0,25,5)}
-nSecs = 13
+ax00 = {'yticks': np.arange(5) }
+ax10 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
+nSecs = 7
 ax01 = {'yticks': np.arange(0, trackFPS*nSecs, 2*trackFPS) , 'yticklabels':  np.arange(0,nSecs,2), 'ylim':(0,trackFPS*nSecs)}
+nSecs = 13
 ax11 = {'yticks': np.arange(0, trackFPS*nSecs, 2*trackFPS),'yticklabels':  np.arange(0,nSecs,2), 'ylim':(0,trackFPS*nSecs) }
-ax02 = {'yticks': [0, 1000, 2000, 3000, 4000], 'yticklabels': ['', 1, '', 3, ''] }
-ax12 = {'yticks': [0, 5000,10000, 15000, 20000], 'yticklabels': [0, '5','10', '15', ''], 'ylim':(0,21000) }
+ax02 = {'yticks': np.arange(0,5000,1000), 'yticklabels': np.arange(5) }
+ax12 = {'yticks': np.arange(0,21000,5000), 'yticklabels': np.arange(0,21,5), 'ylim':(0,21000) }
 ax03 = {'yticks': np.arange(0,10,2)}
 ax13 = {'yticks': np.arange(0,10,2)}
 ax04 = {'ylim': (-0.2, 1.2), 'yticks': [0, 0.5, 1]}
@@ -902,19 +872,21 @@ boxPro = dict(boxprops=boxprops, whiskerprops=whiskerprops, capprops=capprops)
 
 
 ptime = present_time()
-figDir = '/media/aman/data/thesis/ClimbingPaper/Figures/20180305'
-csFigNamePng = ('%s/%s_CS.png'%(figDir, ptime))
-combinedFigNamePng = ('%s/%s_%s.png'%(figDir, ptime, '_'.join(dirs)))
+figDir = '/media/aman/data/thesis/ClimbingPaper/Figures/raw'
+csFigNamePng = ('%s/png/%s_CS.png'%(figDir, ptime))
+combinedFigNamePng = ('%s/png/%s_%s.png'%(figDir, ptime, '_'.join(dirs)))
 csFigNameSvg = ('%s/%s_CS.svg'%(figDir, ptime))
 combinedFigNameSvg = ('%s/%s_%s.svg'%(figDir, ptime, '_'.join(dirs)))
 dpi = 300
+
 if 'CS' in dirs:
     csIndex = dirs.index('CS')
     csGT = allGenotypePerUT_Data[csIndex]
     data = np.nanmean(csGT[:], axis=0)
     sem = stats.sem(csGT[:], axis=0)
     vPlotPosCS = [csIndex+1]
-    
+    ax10 = {'yticks': np.arange(0,21,5), 'ylim':(0,21)}
+    axP[0][0]=ax10
     fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
     fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
     for i in xrange(nParamsToPlot):
