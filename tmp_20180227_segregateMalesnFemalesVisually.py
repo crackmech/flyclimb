@@ -83,7 +83,7 @@ def selectSex(animalDir):
     imgs = []
     for im in xrange(len(imList)):
         imgs.append(cv2.imread(imList[im]))
-    # print imdir, imList[0], len(imList)
+    #print animalDir, len(imList)
     windowName = 'trackImage'+animalDir.rsplit('/')[-1]
     cv2.namedWindow(windowName)
     cv2.createTrackbar('imageNumber', windowName, 0, (len(imList)-2), nothing)
@@ -109,7 +109,7 @@ def displayIm(genotypeDir):
     global rawDir, imList
     rawdirs = natural_sort([ os.path.join(genotypeDir, name) for name in os.listdir(genotypeDir) if os.path.isdir(os.path.join(genotypeDir, name)) ])
     for i, rawDir in enumerate(rawdirs):
-        while 'male' not in rawDir:
+        if 'male' not in rawDir:
             rawDir = selectSex(rawDir)
         print('Sexual Identification done')
 
