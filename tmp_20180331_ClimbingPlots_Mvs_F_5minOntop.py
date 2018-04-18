@@ -1,6 +1,13 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
+Created on Sat Mar 31 15:19:19 2018
+
+@author: aman
+"""
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+"""
 Created on Tue Mar  6 14:25:20 2018
 
 @author: aman
@@ -300,7 +307,7 @@ speedBins = np.arange(speedBinMin, speedBinMax, speedBinStep)
 
 baseDir = '/media/aman/data/flyWalk_data/climbingData/controls'
 #baseDir = '/media/pointgrey/data/flywalk/20180104/'
-colors = [random_color() for c in xrange(1000)]
+colorsRandom = [random_color() for c in xrange(1000)]
 
 baseDir = getFolder(baseDir)
 dirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
@@ -396,6 +403,14 @@ for i, gt in enumerate(dirs):
         genotypes.append(gt)
         colors.append((0/div,0/div,0/div,alfa))
         markers.append('^')
+    elif gt in ('CS_males', 'cs'):
+        genotypes.append(gt)
+        colors.append((0/div,0/div,0/div,alfa))
+        markers.append('^')
+    elif gt in ('CS_females', 'cs'):
+        genotypes.append(gt)
+        colors.append((0/div,0/div,0/div,alfa))
+        markers.append('^')
     elif gt in ('W1118', 'w1118'):
         genotypes.append(r'W$^1$$^1$$^1$$^8$')
         colors.append((230/div,218/div,66/div,alfa))
@@ -422,7 +437,7 @@ for i, gt in enumerate(dirs):
         markers.append('s')
     else:
         genotypes.append(gt)
-        colors.append((255/div,0/div,0/div,alfa))
+        colors.append(random.choice(colorsRandom))
         markers.append('8')
     print i, gt, len(colors), colors
 
@@ -560,6 +575,7 @@ def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFol
                 flyAllInsSpeeds.extend(insSpeeds[~np.isnan(insSpeeds)])
     flyAllData = np.array(flyAllData)
     flyDisPerUnitTime = []
+    print flyAllData.shape
     for j in xrange(unitTime, timeThresh+1, unitTime):
         disPerUT = []
         for i in xrange(len(flyAllData[:,-1])):
@@ -934,48 +950,48 @@ if 'CS' in dirs:
     # fig.set_size_inches(7,7/1.618)
 
 
-if 'W1118' in dirs:
-    fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
-    fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
-    for c, gt in enumerate(allGenotypePerUT_Data):
-        data = np.nanmean(gt[:], axis=0)
-        sem = stats.sem(gt[:], axis=0)
-        tPlots = []
-        for i in xrange(0, nParamsToPlot):
-            tp = ax[tSeriesPlotIndex,i].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], color=colors[c], fmt='-'+markers[c], label=genotypes[c])
-            tPlots.append(tp)
-    legendHandles, legendLabels = ax[legendAxesRowGet, legendAxesColGet].get_legend_handles_labels()
-    ax[legendAxesRowSet, legendAxesColSet].legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(legendHorPos, legendVerPos), loc=2, shadow=True, edgecolor=(0,0,0), fontsize='x-small', ncol=1).draggable()
-    bPlots = []
-    vPlots = []
+
+fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
+fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
+for c, gt in enumerate(allGenotypePerUT_Data):
+    data = np.nanmean(gt[:], axis=0)
+    sem = stats.sem(gt[:], axis=0)
+    tPlots = []
     for i in xrange(0, nParamsToPlot):
-        plotData = dataToPlot[i]
-        vp = ax[total5MinPlotIndex, i].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
-        bp = ax[total5MinPlotIndex, i].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
-        for s,scatterPlotData in enumerate(plotData):
-            plotScatter(ax[total5MinPlotIndex, i], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
-        vPlots.append(vp)
-        bPlots.append(bp)
-    for vplot in vPlots:
-        vplot[vPlotLineShow].set_color(medianColor)
-        for patch, color in zip(vplot['bodies'], colors):
-            patch.set_color(color)
-            patch.set_edgecolor(None)
-            patch.set_alpha(vAlpha)
-    
-    for i in xrange(0, len(axP)):
-        for j in xrange(0, nParamsToPlot):
-            plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
-            plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
-            plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
-            plt.setp(ax[i,j], ylabel = plotYLabels[j])
-            plt.setp(ax[i,j], **axP[i][j])
-            if i==tSeriesPlotIndex:
-                plt.setp(ax[i,j], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
-    plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
-    plt.savefig(combinedFigNamePng, dpi=dpi, format='png')
-    plt.savefig(combinedFigNameSvg, format='svg')
-    # plt.show()
+        tp = ax[tSeriesPlotIndex,i].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], color=colors[c], fmt='-'+markers[c], label=genotypes[c])
+        tPlots.append(tp)
+legendHandles, legendLabels = ax[legendAxesRowGet, legendAxesColGet].get_legend_handles_labels()
+ax[legendAxesRowSet, legendAxesColSet].legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(legendHorPos, legendVerPos), loc=2, shadow=True, edgecolor=(0,0,0), fontsize='x-small', ncol=1).draggable()
+bPlots = []
+vPlots = []
+for i in xrange(0, nParamsToPlot):
+    plotData = dataToPlot[i]
+    vp = ax[total5MinPlotIndex, i].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
+    bp = ax[total5MinPlotIndex, i].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
+    for s,scatterPlotData in enumerate(plotData):
+        plotScatter(ax[total5MinPlotIndex, i], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
+    vPlots.append(vp)
+    bPlots.append(bp)
+for vplot in vPlots:
+    vplot[vPlotLineShow].set_color(medianColor)
+    for patch, color in zip(vplot['bodies'], colors):
+        patch.set_color(color)
+        patch.set_edgecolor(None)
+        patch.set_alpha(vAlpha)
+
+for i in xrange(0, len(axP)):
+    for j in xrange(0, nParamsToPlot):
+        plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
+        plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
+        plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
+        plt.setp(ax[i,j], ylabel = plotYLabels[j])
+        plt.setp(ax[i,j], **axP[i][j])
+        if i==tSeriesPlotIndex:
+            plt.setp(ax[i,j], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
+plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
+plt.savefig(combinedFigNamePng, dpi=dpi, format='png')
+plt.savefig(combinedFigNameSvg, format='svg')
+# plt.show()
 
 
 
@@ -998,42 +1014,42 @@ axP1 = [ax0, ax0]
 
 
 #-----GeoTacticIndex Plot-------
-if 'W1118' in dirs:
-    fig, ax = plt.subplots(nPlotStacks, gtinParamsToPlot, figsize=(1.8, gtiFigHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
-    fig.subplots_adjust(left=gtiMarginLeft, bottom=gtiMarginBottom, right=gtiMarginRight, top=gtiMarginTop, wspace = wSpace, hspace = hSpace)
-    for c, gt in enumerate(allGenotypePerUT_Data):
-        data = np.nanmean(gt[:], axis=0)
-        sem = stats.sem(gt[:], axis=0)
-        tPlots = []
-        i=-1
-        tp = ax[tSeriesPlotIndex].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], color=colors[c], fmt='-'+markers[c], label=genotypes[c])
-    legendHandles, legendLabels = ax[tSeriesPlotIndex].get_legend_handles_labels()
-    ax[total5MinPlotIndex].legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(legendHorPos, gtilegendVerPos),\
-      loc=2, shadow=True, edgecolor=(0,0,0), fontsize='x-small', ncol=2).draggable()
-    plotData = dataToPlot[i]
-    vp = ax[total5MinPlotIndex].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
-    bp = ax[total5MinPlotIndex].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
-    for s,scatterPlotData in enumerate(plotData):
-        plotScatter(ax[total5MinPlotIndex], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
-    vp[vPlotLineShow].set_color(medianColor)
-    for patch, color in zip(vp['bodies'], colors):
-        patch.set_color(color)
-        patch.set_edgecolor(None)
-        patch.set_alpha(vAlpha)
-    
-    for i in xrange(0, len(axP1)):
-            plt.setp([ax[i].spines[x].set_visible(False) for x in ['top','right']])
-            plt.setp(ax[i].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
-            plt.setp(ax[i].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
-            plt.setp(ax[i], ylabel = plotYLabels[-1])
-            plt.setp(ax[i], **axP1[i])
-            if i==tSeriesPlotIndex:
-                plt.setp(ax[i], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
-    plt.setp(ax[total5MinPlotIndex], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
-    # plt.setp([axs for axs in ax[tSeriesPlotIndex]], xticks = [0,1,2,3,4], xticklabels = [])
-    plt.savefig(gtiFigNamePng, dpi=dpi, format='png')
-    plt.savefig(gtiFigNameSvg, format='svg')
-    # plt.show()
+
+fig, ax = plt.subplots(nPlotStacks, gtinParamsToPlot, figsize=(1.8, gtiFigHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
+fig.subplots_adjust(left=gtiMarginLeft, bottom=gtiMarginBottom, right=gtiMarginRight, top=gtiMarginTop, wspace = wSpace, hspace = hSpace)
+for c, gt in enumerate(allGenotypePerUT_Data):
+    data = np.nanmean(gt[:], axis=0)
+    sem = stats.sem(gt[:], axis=0)
+    tPlots = []
+    i=-1
+    tp = ax[tSeriesPlotIndex].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], color=colors[c], fmt='-'+markers[c], label=genotypes[c])
+legendHandles, legendLabels = ax[tSeriesPlotIndex].get_legend_handles_labels()
+ax[total5MinPlotIndex].legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(legendHorPos, gtilegendVerPos),\
+  loc=2, shadow=True, edgecolor=(0,0,0), fontsize='x-small', ncol=2).draggable()
+plotData = dataToPlot[i]
+vp = ax[total5MinPlotIndex].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
+bp = ax[total5MinPlotIndex].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
+for s,scatterPlotData in enumerate(plotData):
+    plotScatter(ax[total5MinPlotIndex], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
+vp[vPlotLineShow].set_color(medianColor)
+for patch, color in zip(vp['bodies'], colors):
+    patch.set_color(color)
+    patch.set_edgecolor(None)
+    patch.set_alpha(vAlpha)
+
+for i in xrange(0, len(axP1)):
+        plt.setp([ax[i].spines[x].set_visible(False) for x in ['top','right']])
+        plt.setp(ax[i].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
+        plt.setp(ax[i].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
+        plt.setp(ax[i], ylabel = plotYLabels[-1])
+        plt.setp(ax[i], **axP1[i])
+        if i==tSeriesPlotIndex:
+            plt.setp(ax[i], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
+plt.setp(ax[total5MinPlotIndex], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
+# plt.setp([axs for axs in ax[tSeriesPlotIndex]], xticks = [0,1,2,3,4], xticklabels = [])
+plt.savefig(gtiFigNamePng, dpi=dpi, format='png')
+plt.savefig(gtiFigNameSvg, format='svg')
+# plt.show()
 
 
 
