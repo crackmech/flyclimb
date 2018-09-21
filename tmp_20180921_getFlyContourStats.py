@@ -55,29 +55,30 @@ def getFiles(dirname, extList):
         filesList.extend(glob.glob(os.path.join(dirname, ext)))
     return natural_sort(filesList)
 
-def random_color():
-    levels = range(32,256,32)
-    return tuple(random.choice(levels) for _ in range(3))
+def readIms(dirname, imExts):
+    flist = getFiles(dirname, imExts)
+    img = cv2.imread(flist[0],cv2.IMREAD_GRAYSCALE)
+    imgs = np.zeros((len(flist), img.shape[0], img.shape[1]), dtype = 'uint8')
+    for i in xrange(len(flist)):
+        imgs[i] = cv2.imread(flist[i],cv2.IMREAD_GRAYSCALE)
+    return imgs
 
-def displayImstack(imStack, delay, winName):
+def getBgIm(imgs):
     '''
-    displays images from a given imagestack with 'delay'milliseconds
+    returns a background Image for subtraction using median values of pixels from stack of all images
     '''
-    for _,im in enumerate(imStack):
-        cv2.imshow(winName, im)
-        cv2.waitKey(delay)
-    cv2.destroyAllWindows()
+    avg = np.array((np.median(imgs, axis=0)), dtype = 'uint8')
+    return cv2.convertScaleAbs(avg)
 
-
-def getTrackColors(imArray):
+def getBgSubIms(inImgstack, bgIm):
     '''
-    return the colors to be used for displaying the track
+    returns the stack of images after subtracting the background image from the input imagestack
     '''
-    blue = np.hstack((np.linspace(0, 255, num = len(imArray)/2),np.linspace(255, 0, num = (len(imArray)/2)+1)))
-    green = np.linspace(255, 0, num = len(imArray))
-    red = np.linspace(0, 255, num = len(imArray))
-    return [c for c in zip(blue, green, red)]
-   
+    subIms = np.zeros(np.shape(inImgstack), dtype=np.uint8)
+    for f in range(0, len(inImgstack)):
+        subIms[f] = cv2.absdiff(inImgstack[f], bgIm)
+    return subIms
+    
 def getImContours(args):
     '''
     returns the list of detected contour
@@ -98,13 +99,8 @@ def getImContours(args):
     params = args[2]
     contour = []
     im = cv2.medianBlur(im,params['blurKernel'])
-    th = cv2.adaptiveThreshold(im,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
-            cv2.THRESH_BINARY,params['block'],params['cutoff'])
-<<<<<<< HEAD
-    contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-=======
+    ret,th = cv2.threshold(im, params['threshLow'], params['threshHigh'],cv2.THRESH_BINARY)
     im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
->>>>>>> 5da1375de0a6b04d2e543502a8003d5c0285498a
     #print len(contours)
     try:
         contours = sorted(contours, key = cv2.contourArea)[-10:]
@@ -123,11 +119,6 @@ def getImContours(args):
         #print("no contour detected")
         contour.append([args[0],  [], args[3]])
     return contour
-
-def imRead(fname):
-    '''
-    '''
-    return cv2.imread(fname)
 
 def imReadNCnt(args):
     '''
@@ -152,11 +143,7 @@ def imReadNCnt(args):
     
 def getFlycontour(dirname, imExts,
                   contourParams, header,
-<<<<<<< HEAD
-                  mpPool):
-=======
                   workers):
->>>>>>> 5da1375de0a6b04d2e543502a8003d5c0285498a
     '''
     tracks the fly using cv2.SimpleBlobDetector method and saves the tracked flies in folders
     '''
@@ -164,21 +151,12 @@ def getFlycontour(dirname, imExts,
     flist = getFiles(dirname, imExts)
     nImsToProcess = len(flist)
     print 'processing %i frames in\n==> %s'%(nImsToProcess, dirname)
-<<<<<<< HEAD
-    #pool = mp.Pool(processes=workers)
-    startTime = time.time()
-    poolArgList = itertools.izip(flist, itertools.repeat(params), np.arange(len(flist)))
-    imgWithCnt = mpPool.map(imReadNCnt, poolArgList)
-    t = time.time()-startTime
-    print("imRead and Contours detection time for %d frames: %s Seconds at %5f FPS\n"%(len(imgWithCnt),t ,len(imgWithCnt)/float(t)))
-=======
     pool = mp.Pool(processes=workers)
     startTime = time.time()
     poolArgList = itertools.izip(flist, itertools.repeat(params), np.arange(len(flist)))
     imgWithCnt = pool.map(imReadNCnt, poolArgList)
     t = time.time()-startTime
     print("imRead and Contours detection time for %d frames: %s Seconds at %f FPS\n"%(len(imgWithCnt),t ,len(imgWithCnt)/float(t)))
->>>>>>> 5da1375de0a6b04d2e543502a8003d5c0285498a
     contoursList = [header]
     for idx, i in enumerate(imgWithCnt):
         fname = '/'.join( i[0][0].split('/')[-4:])
@@ -213,11 +191,7 @@ imDataFolder = 'imageData'
 statsfName = 'contoursStats'
 statsFileHeader = ['frameDetails','x-coord','y-coord','minorAxis (px)','majorAxis (px)','angle','area (px)']
 
-<<<<<<< HEAD
-nThreads = 7
-=======
 nThreads = 4
->>>>>>> 5da1375de0a6b04d2e543502a8003d5c0285498a
 #nImThresh = 100
 
 params = {} # dict for holding parameter values for contour detection
@@ -231,41 +205,6 @@ params['flyareaMax'] = 900
 
 
 rawdirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
-<<<<<<< HEAD
-pool = mp.Pool(processes=nThreads)
-
-for idx, rawDir in enumerate(rawdirs):
-    dirs = natural_sort([ os.path.join(rawDir, imDataFolder, name) for name in os.listdir(os.path.join(rawDir, imDataFolder)) if os.path.isdir(os.path.join(rawDir, imDataFolder, name)) ])
-    csvList = glob.glob(os.path.join(rawDir, imDataFolder, '*.csv'))
-    for _,imFolder in enumerate(dirs):
-        statsFile = imFolder.rstrip('/')+'_'+statsfName+'_'+rawDir+'.csv'
-        if statsFile not in csvList:
-            if 'tracked' not in imFolder:
-                flyContours = getFlycontour(imFolder, imExtensions, params, statsFileHeader, pool)
-                with open(statsFile, "w") as f:
-                    writer = csv.writer(f)
-                    writer.writerows(flyContours)
-                f.close()
-        else:
-            print('already processed\n==> %s'%imFolder)
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-=======
 
 for idx, rawDir in enumerate(rawdirs):
     dirs = natural_sort([ os.path.join(rawDir, imDataFolder, name) for name in os.listdir(os.path.join(rawDir, imDataFolder)) if os.path.isdir(os.path.join(rawDir, imDataFolder, name)) ])
@@ -276,46 +215,11 @@ for idx, rawDir in enumerate(rawdirs):
             with open(statsFile, "w") as f:
                 writer = csv.writer(f)
                 writer.writerows(flyContours)
->>>>>>> 5da1375de0a6b04d2e543502a8003d5c0285498a
 
 
 
 
-<<<<<<< HEAD
-'''
-dirname = '/media/aman/data/flyWalk_data/'
 
-dirname = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/tmp_20171201_195931_CS_20171128_0245_11-Climbing_male/imageData/20171201_195953/'
-imExt = '.png'
-
-#dirname = getFolder(dirname)
-
-params = {} # dict for holding parameter values for contour detection
-params['blurKernel'] = 5
-params['block'] = 123
-params['cutoff'] = 15
-params['ellaxisRatioMin'] = 0.2
-params['ellaxisRatioMax'] = 0.5
-params['flyareaMin'] = 300 
-params['flyareaMax'] = 900 
-
-nImThresh = 100
-statsfName = 'contoursStats'
-
-nThreads = 4
-csvFileHeader = ['frameDetails','x-coord','y-coord','minorAxis (px)','majorAxis (px)','angle','area (px)']
-flyContours = getFlycontour(dirname, imExt, params, statsFileHeader, nThreads)
-
-statsFile = dirname.rstrip('/')+'_'+statsfName+'.csv'
-with open(statsFile, "w") as f:
-    writer = csv.writer(f)
-    writer.writerows(flyContours)
-
-
-'''
-=======
-
->>>>>>> 5da1375de0a6b04d2e543502a8003d5c0285498a
 
 
 
