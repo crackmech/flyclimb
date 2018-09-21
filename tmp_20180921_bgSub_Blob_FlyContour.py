@@ -36,11 +36,6 @@ params['blurKernel'] = 11
 workers = 4
 
 
-baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
-#baseDir = '/media/pointgrey/data/flywalk/climbingData/uploaded/'
-#baseDir = getFolder(baseDir)
-
-
 def present_time():
         now = datetime.now()
         return now.strftime('%Y%m%d_%H%M%S')
@@ -171,7 +166,9 @@ def getFlycontour(dirname, imExts,
 
 
 
-
+baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
+#baseDir = '/media/pointgrey/data/flywalk/climbingData/uploaded/'
+#baseDir = getFolder(baseDir)
 
 try:
     baseDir = sys.argv[1]
