@@ -5,13 +5,6 @@ Created on Thu Apr 12 18:06:33 2018
 
 @author: aman
 """
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Nov 14 18:46:57 2017
-
-@author: aman
-"""
 import cv2
 import os
 import numpy as np
@@ -29,7 +22,6 @@ from os.path import basename
 import glob
 from scipy.misc import imread
 
-nImThreshold = 100# if number of images in a folder is less than this, then the folder is not processed
 
 def present_time():
         now = datetime.now()
@@ -79,11 +71,11 @@ def getFlycontour(dirname,
     ims = []
     allContours = []
     flist = natural_sort(os.listdir(dirname))
-    print '\nprocessing %i frames in\n==> %s'%(len(flist), dirname)
     if len(flist)<=nImThreshold:
-	print('Less Images to process, not processing folder, nImages present: %i'%len(flist))
+        print('Less Images to process, not processing folder, nImages present: %i'%len(flist))
         pass
     else:
+        print '\nprocessing %i frames in\n==> %s'%(len(flist), dirname)
         img = cv2.imread(dirname+'/'+flist[0],cv2.IMREAD_GRAYSCALE)
         ims = np.zeros((len(flist), img.shape[0], img.shape[1]), dtype = 'uint8')
         for i in xrange(len(flist)):
@@ -102,7 +94,7 @@ def getFlycontour(dirname,
                     ctrs.append(cnt[2])
             if ctrs:
                 imgs.append(im)
-                allContours.append(cv2.fitEllipse(ctrs[0]))
+                allContours.append(ctrs[0])
             else:
                 pass
     return imgs, allContours
@@ -113,6 +105,7 @@ def displayMovie(imageArray, contourList, saveDir, displayIm = True, saveIm = Fa
     '''
     gapIm = np.ones((imageArray[0].shape[0],10, 3), dtype='uint8')*255
     colors = getTrackColors(imageArray)
+    contours = [cv2.fitEllipse(x) for x in contourList]
     if saveIm:
         try:
             os.mkdir(saveDir)
@@ -121,7 +114,7 @@ def displayMovie(imageArray, contourList, saveDir, displayIm = True, saveIm = Fa
     for i, img in enumerate(imageArray):
         im =  cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
         img = im.copy()
-        cnt = contourList[i]
+        cnt = contours[i]
         rect = copy.deepcopy(cnt)
         rect = (rect[0],(1, rect[1][1]), rect[2])
         cntRect = cv2.boxPoints(rect)
@@ -129,9 +122,9 @@ def displayMovie(imageArray, contourList, saveDir, displayIm = True, saveIm = Fa
         if i!=0:
             for j in range(i):
                 if j%100==0:
-                    cv2.putText(im, str(j), (int(contourList[j][0][0]),int(contourList[j][0][1])+20), cv2.FONT_HERSHEY_COMPLEX, 1, (0,255,255),2)
+                    cv2.putText(im, str(j), (int(contours[j][0][0]),int(contours[j][0][1])+20), cv2.FONT_HERSHEY_COMPLEX, 1, (0,255,255),2)
                 try:
-                    cv2.circle(im,(int(contourList[j][0][0]),int(contourList[j][0][1])), 2, colors[j], thickness=2)#draw a circle on the detected body blobs
+                    cv2.circle(im,(int(contours[j][0][0]),int(contours[j][0][1])), 2, colors[j], thickness=2)#draw a circle on the detected body blobs
                 except:
                     pass
         cv2.drawContours(im,[cntRect],0,(255,255,255),2)
@@ -160,6 +153,7 @@ imgDatafolder = 'imageData'
 baseDir = getFolder(initialDir)
 rawdirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
 
+nImThreshold = 100# if number of images in a folder is less than this, then the folder is not processed
 
 climbParams = {
                 'flyAreaMin' : 300,
@@ -197,7 +191,9 @@ def getTrackedIms(dirname):
                                 flyareaMin = flyAreaMin,
                                 flyareaMax = flyAreaMax)
     print ("done tracking, now displaying")
-    displayMovie(images, flyContours, saveFolder, True, False, tFPS = 10)
+    print len(images), len(flyContours)
+    if len(images)!=0:
+        displayMovie(images, flyContours, saveFolder, displayIm = True, saveIm = False, tFPS = 100)
     
 print "Started processing directories at "+present_time()
 for rawDir in rawdirs:
