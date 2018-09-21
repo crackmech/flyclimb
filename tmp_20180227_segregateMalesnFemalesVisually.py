@@ -8,11 +8,11 @@ Created on Tue Feb 27 19:22:56 2018
 import cv2
 import os
 import glob
-import numpy as np
 import re
 from datetime import datetime
 import Tkinter as tk
 import tkFileDialog as tkd
+#import numpy as np
 # import random
 # import matplotlib.pyplot as plt
 # from scipy import stats
@@ -44,10 +44,10 @@ def getFolder(initialDir):
     root.destroy()
     return initialDir+'/'
 
-baseDir = '/media/aman/data/flyWalk_data/climbingData/controls'
-#baseDir = '/media/pointgrey/data/flywalk/20180104/'
+baseDir = '/media/pointgrey/data/flywalk/'
 
 baseDir = getFolder(baseDir)
+print baseDir
 dirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
 
 
@@ -86,6 +86,7 @@ def selectSex(animalDir):
     #print animalDir, len(imList)
     windowName = 'trackImage'+animalDir.rsplit('/')[-1]
     cv2.namedWindow(windowName)
+    cv2.moveWindow(windowName, 30,30)
     cv2.createTrackbar('imageNumber', windowName, 0, (len(imList)-2), nothing)
     cv2.createTrackbar('label Male', windowName, 0, 1, renameMale)
     cv2.createTrackbar('label Female', windowName, 0, 1, renameFemale)
@@ -109,11 +110,13 @@ def displayIm(genotypeDir):
     global rawDir, imList
     rawdirs = natural_sort([ os.path.join(genotypeDir, name) for name in os.listdir(genotypeDir) if os.path.isdir(os.path.join(genotypeDir, name)) ])
     for i, rawDir in enumerate(rawdirs):
-        if 'male' not in rawDir:
+        print "____",rawDir
+        if 'male' not in rawDir.split(os.sep)[-1]:
+            print "++++",rawDir
             rawDir = selectSex(rawDir)
         print('Sexual Identification done')
 
-
+rawDir = ''
 for _,d in enumerate(dirs):
     path = os.path.join(baseDir, d)
     displayIm(path)

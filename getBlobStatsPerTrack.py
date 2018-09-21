@@ -202,8 +202,15 @@ decPoint = 5
 blurKernel = 5
 block = 221
 cutoff = 35
+#--- climbing centroid tracking thresholds---
 flyAreaMin = 100
 flyAreaMax = 4000
+#--- climbing centroid tracking thresholds---
+
+#--- climbing leg tracking thresholds---
+flyAreaMin = 1000
+flyAreaMax = 6000
+#--- climbing leg tracking thresholds---
 
 ellAxisRatioMin = 0.2
 ellAxisRatioMax = 0.5

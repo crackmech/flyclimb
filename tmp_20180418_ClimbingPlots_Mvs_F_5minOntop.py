@@ -1,10 +1,11 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on Sat Mar 31 15:19:19 2018
+Created on Wed Apr 18 00:01:16 2018
 
-@author: aman
+@author: pointgrey
 """
+
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
@@ -307,7 +308,7 @@ speedBins = np.arange(speedBinMin, speedBinMax, speedBinStep)
 
 #baseDir = '/media/aman/data/flyWalk_data/climbingData/controls'
 baseDir = '/media/pointgrey/data/flywalk/'
-colorsRandom = [random_color() for c in xrange(1000)]
+randColors = [random_color() for c in xrange(1000)]
 
 baseDir = getFolder(baseDir)
 dirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
@@ -329,6 +330,7 @@ if  'W1118' in dirs:
 
 genotypes = ['CS','Dop2R','Park25','PINK1RV', r'Trp-$\gamma$']
 
+#saveDir = '/media/aman/data/thesis/ClimbingPaper/data/'+baseDir.split('/')[-2]+'/'+baseDir.split('/')[-2]+'_'
 saveDir = baseDir+'_'
 saveFiles = ''
 for _,d in enumerate(dirs):
@@ -403,14 +405,6 @@ for i, gt in enumerate(dirs):
         genotypes.append(gt)
         colors.append((0/div,0/div,0/div,alfa))
         markers.append('^')
-    elif gt in ('CS_males', 'cs'):
-        genotypes.append(gt)
-        colors.append((0/div,0/div,0/div,alfa))
-        markers.append('^')
-    elif gt in ('CS_females', 'cs'):
-        genotypes.append(gt)
-        colors.append((0/div,0/div,0/div,alfa))
-        markers.append('^')
     elif gt in ('W1118', 'w1118'):
         genotypes.append(r'W$^1$$^1$$^1$$^8$')
         colors.append((230/div,218/div,66/div,alfa))
@@ -419,16 +413,12 @@ for i, gt in enumerate(dirs):
         genotypes.append(r'Trp-$\gamma$')
         colors.append((0/div,158/div,115/div,alfa))
         markers.append('o')
-    elif gt in ('Park_+',  'PARK_+'):
-        genotypes.append(r'Park$^2$$^5$/+')
-        colors.append((70/div,0/div,10/div,alfa))
-        markers.append('o')
     elif gt in ('PINK1RV', 'pink1rv'):
         genotypes.append(r'PINK1$^R$$^V$')
         colors.append((204/div,121/div,167/div,alfa))
         markers.append('d')
-    elif gt in ('PARK25_TM3', 'Park25_TM3'):
-        genotypes.append(r'Park$^2$$^5$/TM3')
+    elif gt in ('PARK25', 'Park25'):
+        genotypes.append(r'Park$^2$$^5$')
         colors.append((86/div,180/div,233/div,alfa))
         markers.append('v')
     elif gt in ('Dop2R', 'dop2r'):
@@ -437,7 +427,7 @@ for i, gt in enumerate(dirs):
         markers.append('s')
     else:
         genotypes.append(gt)
-        colors.append(random.choice(colorsRandom))
+        colors.append(random.choice(randColors))
         markers.append('8')
     print i, gt, len(colors), colors
 
@@ -575,7 +565,6 @@ def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFol
                 flyAllInsSpeeds.extend(insSpeeds[~np.isnan(insSpeeds)])
     flyAllData = np.array(flyAllData)
     flyDisPerUnitTime = []
-    print flyAllData.shape
     for j in xrange(unitTime, timeThresh+1, unitTime):
         disPerUT = []
         for i in xrange(len(flyAllData[:,-1])):
@@ -835,7 +824,7 @@ marginRight = 0.99
 marginTop = 0.97
 marginBottom = 0.082
 
-legendHorPos = 0.32
+legendHorPos = 0.42
 legendVerPos = 1.058
 legendAxesRowSet = total5MinPlotIndex
 legendAxesRowGet = tSeriesPlotIndex
@@ -861,10 +850,10 @@ ax02 = {'yticks': np.arange(0,5000,1000), 'yticklabels': np.arange(5) }
 ax12 = {'yticks': np.arange(0,21000,5000), 'yticklabels': np.arange(0,21,5), 'ylim':(0,21000) }
 ax03 = {'yticks': np.arange(0,10,2)}
 ax13 = {'yticks': np.arange(0,10,2)}
-ax04 = {'ylim': (0, 1.1), 'yticks': [0, 0.5, 1]}
-ax14 = {'ylim': (0, 1.5), 'yticks': [0, 0.5, 1]}
-ax05 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
-ax15 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
+ax04 = {'ylim': (-0.2, 1.2), 'yticks': [0, 0.5, 1]}
+ax14 = {'ylim': (-0.2, 1.2), 'yticks': [0, 0.5, 1]}
+ax05 = {'ylim': (1.2, -1.2), 'yticks': [-1, 0, 1]}
+ax15 = {'ylim': (1.2, -1.2), 'yticks': [-1, 0, 1]}
 axP = [
         [ax10, ax11, ax12, ax13, ax14, ax15],
         [ax00, ax01, ax02, ax03, ax04, ax05]
@@ -894,13 +883,14 @@ boxPro = dict(boxprops=boxprops, whiskerprops=whiskerprops, capprops=capprops)
 
 
 ptime = present_time()
-figDir = baseDir+'../'
-csFigNamePng = ('%s/png/%s_CS.png'%(figDir, ptime))
-combinedFigNamePng = ('%s/png/%s_%s.png'%(figDir, ptime, '_'.join(dirs)))
+figDir = '/media/aman/data/thesis/ClimbingPaper/Figures/raw'
+figDir = baseDir.rstrip('/')
+csFigNamePng = ('%s/%s_CS.png'%(figDir, ptime))
+combinedFigNamePng = ('%s/%s_%s.png'%(figDir, ptime, '_'.join(dirs)))
+gtiFigNamePng = ('%s/%s_%s_gti.png'%(figDir, ptime, '_'.join(dirs)))
 csFigNameSvg = ('%s/%s_CS.svg'%(figDir, ptime))
 combinedFigNameSvg = ('%s/%s_%s.svg'%(figDir, ptime, '_'.join(dirs)))
-gtiFigNamePng = ('%s/png/%s_%s_GTI.png'%(figDir, ptime, '_'.join(dirs)))
-gtiFigNameSvg = ('%s/%s_%s_GTI.svg'%(figDir, ptime, '_'.join(dirs)))
+gtiFigNameSvg = ('%s/%s_%s_gti.svg'%(figDir, ptime, '_'.join(dirs)))
 dpi = 300
 
 sMarkers  = ['o' for x in sMarkers]
@@ -946,12 +936,11 @@ if 'CS' in dirs:
     plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,2], xticks = [0], xticklabels = [])
     plt.savefig(csFigNamePng, dpi=dpi, format='png')
     plt.savefig(csFigNameSvg, format='svg')
-    # plt.show()
+    plt.show()
     # fig.set_size_inches(7,7/1.618)
+markers = ['o' for x in markers]
 
-
-
-fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
+fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout)#, gridspec_kw = {'height_ratios':figRatio})
 fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
 for c, gt in enumerate(allGenotypePerUT_Data):
     data = np.nanmean(gt[:], axis=0)
@@ -991,7 +980,7 @@ for i in xrange(0, len(axP)):
 plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
 plt.savefig(combinedFigNamePng, dpi=dpi, format='png')
 plt.savefig(combinedFigNameSvg, format='svg')
-# plt.show()
+plt.show()
 
 
 
@@ -1014,8 +1003,7 @@ axP1 = [ax0, ax0]
 
 
 #-----GeoTacticIndex Plot-------
-
-fig, ax = plt.subplots(nPlotStacks, gtinParamsToPlot, figsize=(1.8, gtiFigHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
+fig, ax = plt.subplots(nPlotStacks, gtinParamsToPlot, figsize=(1.8, gtiFigHeight), tight_layout = tightLayout)#, gridspec_kw = {'height_ratios':figRatio})
 fig.subplots_adjust(left=gtiMarginLeft, bottom=gtiMarginBottom, right=gtiMarginRight, top=gtiMarginTop, wspace = wSpace, hspace = hSpace)
 for c, gt in enumerate(allGenotypePerUT_Data):
     data = np.nanmean(gt[:], axis=0)
@@ -1049,78 +1037,7 @@ plt.setp(ax[total5MinPlotIndex], xlim=[0,len(genotypes)+1], xticks = [0], xtickl
 # plt.setp([axs for axs in ax[tSeriesPlotIndex]], xticks = [0,1,2,3,4], xticklabels = [])
 plt.savefig(gtiFigNamePng, dpi=dpi, format='png')
 plt.savefig(gtiFigNameSvg, format='svg')
-# plt.show()
-
-
-
-nParams
-sheetNames = ['NumTracks','TrackDuration','TotalDistance',\
-              'AvSpeed','GeotacticIndex', 'Straightness']
-
-columnHeader = 'TimePoint'
-skipheaderCells = 2
-
-("%s%s_climbing5MinutesStats%s.csv"%(saveDir, present_time(), saveFiles))
-
-#---- Save sheet for Per minute data------------
-paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
-sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
-for g, gt in enumerate(allGenotypePerUT_Data):
-    for f, fly in enumerate(gt):
-        for timepoint in xrange(fly.shape[0]):
-            for parameter in xrange(fly.shape[1]):
-                col = g+(timepoint*(len(allGenotypePerUT_Data)+xlGapColumns))
-                if f==0:
-                    if g==0:
-                        timepointHeader =  '%s: %d minute'%(columnHeader, timepoint+1)
-                        sheets[parameter].write(f,col+len(allGenotypePerUT_Data)/2,timepointHeader)
-                    sheets[parameter].write(f+1, col, dirs[g])
-                row = f+skipheaderCells
-                sheets[parameter].write(row,col, fly[timepoint, parameter])
-#paramBook.save(saveDir + "climbingPerMinuteParameters_genotypesTogether"+saveFiles+".xls")
-xlName = "climbingPerMinuteParameters_genotypesTogether"
-paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
-
-
-paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
-sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
-for g, gt in enumerate(allGenotypePerUT_Data):
-    for f, fly in enumerate(gt):
-        for timepoint in xrange(fly.shape[0]):
-            for parameter in xrange(fly.shape[1]):
-                col = timepoint+(g*(fly.shape[0]+xlGapColumns))
-                if f==0:
-                    timepointHeader =  '%d minute'%(timepoint+1)
-                    sheets[parameter].write(f+1,col,timepointHeader)
-                    if timepoint==0:
-                        sheets[parameter].write(f, col+len(allGenotypePerUT_Data)/2, dirs[g])
-                row = f+skipheaderCells
-                sheets[parameter].write(row,col, fly[timepoint, parameter])
-    
-# paramBook.save(saveDir + "climbingPerMinuteParameters_timepointsTogether"+saveFiles+".xls")
-xlName = "climbingPerMinuteParameters_timepointsTogether"
-paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
-
-#---- Save sheet for 5minutes data------------
-genotypeParams = [genotypeNTracks,
-                  genotypeLenTrack,
-                  genotypeDis,
-                  genotypeAvSpeed,
-                  genotypeGeoTacInd,
-                  genotypeStraight]
-paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
-sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
-
-for s in xrange(len(sheets)):
-    sheet = sheets[s]
-    for g in xrange(len(genotypeParams[s])):
-        for row in xrange(len(genotypeParams[s][g])):
-            if row==0:
-                sheet.write(row,g,dirs[g])
-            sheet.write(row+skipheaderCells,g,genotypeParams[s][g][row])
-# paramBook.save(saveDir + "climbingParameters5Minutes_genotypesTogether"+saveFiles+".xls")
-xlName = "climbingParameters5Minutes_genotypesTogether"
-paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
+plt.show()
 
 
 

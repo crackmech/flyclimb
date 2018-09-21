@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Apr 27 15:43:15 2018
+
+@author: pointgrey
+"""
+
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
@@ -14,7 +22,7 @@ Created on Tue Mar  6 14:25:20 2018
 """
 imgDatafolder = 'imageData'
 trackImExtension = '.jpeg'
-csvExt = '.csv'
+csvExt = 'trackData*.csv'
 headers = ['area_average(mm^2)', 'minorAxis_average(mm)', 'majorAxis_average(mm)',\
             'area_median(mm^2)', 'minorAxis_median(mm)', 'majorAxis_median(mm)' ,\
             'nFrames', 'FPS', 'folderName']
@@ -307,9 +315,10 @@ speedBins = np.arange(speedBinMin, speedBinMax, speedBinStep)
 
 #baseDir = '/media/aman/data/flyWalk_data/climbingData/controls'
 baseDir = '/media/pointgrey/data/flywalk/'
+baseDir = '/media/pointgrey/data/flywalk/climbingData/plots/csvDir_20180901/fig3/'
 colorsRandom = [random_color() for c in xrange(1000)]
 
-baseDir = getFolder(baseDir)
+#baseDir = getFolder(baseDir)
 dirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
 
 if  'W1118' in dirs:
@@ -430,6 +439,18 @@ for i, gt in enumerate(dirs):
     elif gt in ('PARK25_TM3', 'Park25_TM3'):
         genotypes.append(r'Park$^2$$^5$/TM3')
         colors.append((86/div,180/div,233/div,alfa))
+        markers.append('v')
+    elif gt in ('PARK25xLrrk-ex1', 'Park25xLrrk-ex1'):
+        genotypes.append(r'Park$^2$$^5$/Lrrk$^e$$^x$$^1$')
+        colors.append((86/div,180/div,233/div,alfa))
+        markers.append('s')
+    elif gt in ('W1118xLrrk-ex1', 'w1118xLrrk-ex1'):
+        genotypes.append(r'W$^1$$^1$$^1$$^8$/Lrrk$^e$$^x$$^1$')
+        colors.append((180/div,109/div,0/div,alfa))
+        markers.append('v')
+    elif gt in ('PARK25xW1118', 'Park25xw1118', 'Park25xW1118'):
+        genotypes.append(r'Park$^2$$^5$/W$^1$$^1$$^1$$^8$')
+        colors.append((70/div,0/div,10/div,alfa))
         markers.append('v')
     elif gt in ('Dop2R', 'dop2r'):
         genotypes.append(gt)
@@ -560,6 +581,7 @@ def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFol
         distanceTravelled in unitTime
         nTracks in unitTime
     '''
+    print flyTrackData[0][-1][0].split('/')[-3]
     flyAllData = []
     flyAllInsSpeeds = []
     flyGeoIndex = 0
@@ -582,7 +604,6 @@ def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFol
             if (j-unitTime)<=flyAllData[i,-1]<j:
                 disPerUT.append(flyAllData[i,:])
         flyDisPerUnitTime.append(np.array(disPerUT))
-        print"---"
         '''
         flyAllData contains: avSpeed per track, distance moved per track, geotactic Index, nFrames per track, time from starting imaging of the fly
         flyAllInsSpeeds contains: a single arrray of all instaneous speeds of the fly
@@ -950,6 +971,8 @@ if 'CS' in dirs:
     # fig.set_size_inches(7,7/1.618)
 
 
+ax10 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
+axP[0][0]=ax10
 
 fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
 fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
@@ -1055,7 +1078,7 @@ plt.savefig(gtiFigNameSvg, format='svg')
 
 nParams
 sheetNames = ['NumTracks','TrackDuration','TotalDistance',\
-              'AvSpeed','GeotacticIndex', 'Straightness']
+              'AvSpeed','GeotacticIndex', 'Straightness', 'flyDetails']
 
 columnHeader = 'TimePoint'
 skipheaderCells = 2
@@ -1107,7 +1130,8 @@ genotypeParams = [genotypeNTracks,
                   genotypeDis,
                   genotypeAvSpeed,
                   genotypeGeoTacInd,
-                  genotypeStraight]
+                  genotypeStraight,
+                  genotypeName]
 paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
 sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
 
