@@ -138,7 +138,7 @@ def getContours((idx, im, contourParams, blurParams)):
     th = cv2.bitwise_not(th)
     ver = (cv2.__version__).split('.')
     if int(ver[0]) < 3 :
-        im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     else : 
         im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     try:
@@ -386,7 +386,11 @@ def getLegTipLocs(rawDir, trackParams, legContourThresh, outFname, pool, workers
     croppedSubIms = np.array(croppedSubIms, dtype=np.uint8)
     allLocs = []
     for i, im in enumerate(croppedSubIms):
-        _, contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        ver = (cv2.__version__).split('.')
+        if int(ver[0]) < 3 :
+            contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        else:
+            _, contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours = [x for x in sorted(contours, key = cv2.contourArea)[-6:] if cv2.contourArea(x)>=legContourThresh]
         locs = []
         for j,cnt in enumerate(contours):

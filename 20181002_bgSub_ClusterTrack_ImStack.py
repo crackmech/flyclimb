@@ -15,7 +15,7 @@ import tkFileDialog as tkd
 import multiprocessing as mp
 import time
 import glob
-import trackpy as tp
+#import trackpy as tp
 import random
 import csv
 import itertools
@@ -45,7 +45,7 @@ else :
 
 
 
-nImThreshold = 0# if number of images in a folder is less than this, then the folder is not processed
+nImThresh = 100# if number of images in a folder is less than this, then the folder is not processed
 imgDatafolder = 'imageData'
 
 
@@ -91,10 +91,10 @@ colors = \
  (224, 224, 96), (224, 192, 224), (96, 0, 64), (224, 224, 128), (32, 224, 128), (64, 64, 128),
  (64, 64, 192), (64, 64, 64), (64, 192, 224), (96, 128, 64), (192, 64, 160), (96, 64, 0),
  (192, 32, 0), (192, 96, 96), (192, 224, 0), (192, 224, 128), (224, 64, 0), (0, 96, 192)]
-csvOutFile = '/media/aman/data/thesis/colorPalette_20181004.csv'
-with open(csvOutFile, "wb") as f:
-    writer = csv.writer(f)
-    writer.writerows(colors)
+#csvOutFile = '/media/aman/data/thesis/colorPalette_20181004.csv'
+#with open(csvOutFile, "wb") as f:
+#    writer = csv.writer(f)
+#    writer.writerows(colors)
 
 def createTrack(trackData, img):
     '''
@@ -144,11 +144,12 @@ def getTrackData(imStack, Blobparams, blurParams):
 
 def getContours((idx, im, contourParams, blurParams)):
     kernel, sigma = blurParams
-    ret,th = cv2.threshold(cv2.GaussianBlur(im, (kernel,kernel), sigma), contourParams['threshLow'], contourParams['threshHigh'],cv2.THRESH_BINARY)
+    #print idx, im.shape, contourParams, blurParams
+    ret, th = cv2.threshold(cv2.GaussianBlur(im, (kernel,kernel), sigma), contourParams['threshLow'], contourParams['threshHigh'],cv2.THRESH_BINARY)
     th = cv2.bitwise_not(th)
     ver = (cv2.__version__).split('.')
     if int(ver[0]) < 3 :
-        im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     else : 
         im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     try:
@@ -311,7 +312,11 @@ def getSubIms(dirname, imExts, pool, workers):
     '''
     flist = getFiles(dirname, imExts)
     #startTime = time.time()
-    imgStack = np.array(pool.map(imRead, flist), dtype=np.uint8)
+    imgStack = pool.map(imRead, flist)
+    ims = np.zeros((len(imgStack),imgStack[0].shape[0], imgStack[0].shape[1] ), dtype=np.uint8)
+    for i,x in enumerate(imgStack):
+        ims[i]=x
+    imgStack = ims.copy()
     #t1 = time.time()-startTime
     #print("imRead time for %d frames: %s Seconds at %f FPS"%(len(flist),t1 ,len(flist)/float(t1)))
     #t1 = time.time()
@@ -322,7 +327,11 @@ def getSubIms(dirname, imExts, pool, workers):
     #t2 = time.time()-t1
     #print("bg calculation time for %d frames: %s Seconds at %f FPS"%(len(flist),t2 ,len(flist)/float(t2)))
     #t2 = time.time()
-    subIms = np.array(pool.map(getBgSubIm, itertools.izip(imgStack, itertools.repeat(bgIm))), dtype=np.uint8)
+    subIms = pool.map(getBgSubIm, itertools.izip(imgStack, itertools.repeat(bgIm)))
+    ims = np.zeros((len(subIms),subIms[0].shape[0], subIms[0].shape[1] ), dtype=np.uint8)
+    for i,x in enumerate(subIms):
+        ims[i]=x
+    subIms = ims.copy()
     #t = time.time()-t2
     #print("bg Subtraction time for %d frames: %s Seconds at %f FPS"%(len(flist),t ,len(flist)/float(t)))
     return imgStack, subIms, flist
@@ -422,7 +431,11 @@ def getAllLocs(rawDir, trackParams, legContourThresh, outFname, pool, workers):
     #displayImgs(croppedSubIms, 100)
     allLocs = []
     for i, im in enumerate(croppedSubIms):
-        _, contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        ver = (cv2.__version__).split('.')
+        if int(ver[0]) < 3 :
+            contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        else:
+            _, contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours = [x for x in sorted(contours, key = cv2.contourArea)[-6:] if cv2.contourArea(x)>=legContourThresh]
         locs = []
         for j,cnt in enumerate(contours):
@@ -475,7 +488,7 @@ def assignLegTips(tipLocs, pxMvmntThresh, frmSkipThresh, saveFileName, crpImStac
     return trackedIds, dispIms
 
     
-def getClusters(nclusters, locsArr, fname, imShape):
+def getClusters(nclusters, locsArr, fname, imShape, workers):
     frLabels = [x[0] for x in locsArr]
     locs = [x[-1] for x in locsArr]
     allFrLabels = []
@@ -485,7 +498,7 @@ def getClusters(nclusters, locsArr, fname, imShape):
     allVerts = np.vstack((locs))
     spectral = cluster.SpectralClustering(
                         n_clusters=nclusters, eigen_solver='arpack',
-                        affinity="nearest_neighbors")
+                        affinity="nearest_neighbors", n_jobs=workers)
     spectral.fit(allVerts)
     y_pred = spectral.labels_.astype(np.int)
     allLocs1 = [np.hstack((np.zeros((len(x),1))+i,np.arange(len(x),0, -1).reshape((len(x),1)), x)) for i,x in enumerate(locs)]
@@ -511,8 +524,8 @@ def getClusters(nclusters, locsArr, fname, imShape):
 
 
 initialDir = '/media/pointgrey/data/flywalk/'
-initialDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/tmp/pythonTmp/'
-initialDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/copiedLegTrackingTrackData/'
+#initialDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/tmp/pythonTmp/'
+#initialDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/copiedLegTrackingTrackData/'
 baseDir = getFolder(initialDir)
 
 outDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/tmp/'
@@ -526,7 +539,7 @@ heightCrop      = 100
 widthCrop       = 100
 legCntThresh    = 2
 
-nThreads        = 4
+nThreads        = 7
 kernelSize      = 5
 gauBlurParams   = (kernelSize,1)
 
@@ -547,7 +560,7 @@ cntParams = {'maxCntArea'   :   7000,\
 
 
 trackparams = [imExtensions, heightCrop, widthCrop, cntParams, flyParams,\
-               nImThreshold, gauBlurParams, rattailparams]
+               nImThresh, gauBlurParams, rattailparams]
 
 rawDirs = getDirList(baseDir)
 pool = mp.Pool(processes=nThreads)
@@ -561,15 +574,17 @@ for _,rawDir in enumerate(rawDirs):
     for imdir in imdirs:
         startTime = time.time()
         nFrames = len(getFiles(imdir, imExtensions))
-        fname = imdir.rstrip(os.sep)+'_legTipsClus_n'+str(legTipclusters)+'-Climbing'
-        legTipLocs = getAllLocs(imdir, trackparams, legCntThresh, fname, pool, nThreads)
-        allLocs, croppedIms = legTipLocs
-        if len(allLocs)!=0:
-            lbldLocs, frLabelsAll = getClusters(nclusters = legTipclusters, locsArr = allLocs,\
-                                   fname = fname, imShape = (2*heightCrop, 2*widthCrop))
-        print('==> Processed %i frames in %0.3f seconds at: %05f FPS'\
-        %(nFrames, time.time()-startTime, (nFrames/(time.time()-startTime)))) 
-        totalNFrames +=nFrames
+        if nFrames>nImThresh:
+            fname = imdir.rstrip(os.sep)+'_legTipsClus_n'+str(legTipclusters)+'-Climbing'
+            legTipLocs = getAllLocs(imdir, trackparams, legCntThresh, fname, pool, nThreads)
+            allLocs, croppedIms = legTipLocs
+            if len(allLocs)>25:
+                lbldLocs, frLabelsAll = getClusters(nclusters = legTipclusters, locsArr = allLocs,\
+                                       fname = fname, imShape = (2*heightCrop, 2*widthCrop),\
+                                       workers = nThreads)
+            print('==> Processed %i frames in %0.3f seconds at: %05f FPS'\
+            %(nFrames, time.time()-startTime, (nFrames/(time.time()-startTime)))) 
+            totalNFrames +=nFrames
 pool.close()
 totSecs = time.time()-procStartTime
 print('Processing finished at: %05s, in %sSeconds, total processing speed: %05f FPS'\
