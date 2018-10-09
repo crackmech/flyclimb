@@ -52,10 +52,10 @@ import tkFileDialog as tkd
 import matplotlib.pyplot as plt
 from scipy import stats
 import xlwt
-import dip
+#import dip
 import matplotlib
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.markers import MarkerStyle
+#from mpl_toolkits.mplot3d import Axes3D
+#from matplotlib.markers import MarkerStyle
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 font = {'family' : 'normal',
@@ -207,6 +207,9 @@ def random_color():
     levels = [x/255.0 for x in range(32,256,32)]
     return tuple(random.choice(levels) for _ in range(3))
 
+def reject_outliers(data, m=2):
+    return data[abs(data - np.nanmean(data)) < m * np.nanstd(data)]
+
 def getHistMode(array, bins):
     '''
     Calculates the mode value based on the histogram of a given array
@@ -218,9 +221,23 @@ def getHistMode(array, bins):
     maxValMax = maxValMin+np.max(np.diff(bins))
     return maxValMin, maxValMax
 
-def reject_outliers(data, m=2):
-    return data[abs(data - np.nanmean(data)) < m * np.nanstd(data)]
       
+def getMedian(dataArray, i):
+    '''
+    returns the "median" value of dataArray
+        median is calculated by the function needed to replace the np.median for the dataArray
+    '''
+    med = np.zeros((len(dataArray[0])))
+    med = np.median(dataArray, axis=0)
+    #return med
+    if i==0:
+        bins = angleBins
+    else:
+        bins = speedBins
+    for j in xrange(len(med)):
+        med[j] = getHistMode(dataArray[:,j], bins)[0]
+    return med
+
 def getFlyStats(genotypeData, consecFrameStep, minDisThres, maxDisThres):
     '''Calculates statistics of data from a genotype (folder with 'n' flies)
     
@@ -272,71 +289,6 @@ def getFlyStats(genotypeData, consecFrameStep, minDisThres, maxDisThres):
         angsData.append(angData)
     return genotypeStats, angles, angsData
 
-def getMedian(dataArray, i):
-    '''
-    returns the "median" value of dataArray
-        median is calculated by the function needed to replace the np.median for the dataArray
-    '''
-    med = np.zeros((len(dataArray[0])))
-    med = np.median(dataArray, axis=0)
-    #return med
-    if i==0:
-        bins = angleBins
-    else:
-        bins = speedBins
-    for j in xrange(len(med)):
-        med[j] = getHistMode(dataArray[:,j], bins)[0]
-    return med
-
-maxTimeThresh = 300 # time for calculation of data from tracks under this much seconds
-chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
-minTrackLen = blu*10
-unitTime = 60
-
-
-disMinThres = blu/20
-disMaxThres = blu
-consecWin = 7
-trackLenThresh = 10*blu
-
-
-speedBinMin = disMinThres
-speedBinMax = disMaxThres
-speedBinStep = 0.1
-speedBins = np.arange(speedBinMin, speedBinMax, speedBinStep)
-
-baseDir = '/media/aman/data/flyWalk_data/climbingData/'
-#baseDir = '/media/pointgrey/data/flywalk/20180104/'
-colorsRandom = [random_color() for c in xrange(1000)]
-
-baseDir = getFolder(baseDir)
-dirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
-
-if  'W1118' in dirs:
-    if 'CS' in dirs:
-        csIndex = dirs.index('CS')
-        w1118Index = dirs.index('W1118')
-        dirs.pop(csIndex)
-        dirs.insert(0, 'CS')
-        dirs.pop(w1118Index)
-        dirs.insert(1, 'W1118')
-    else:
-        w1118Index = dirs.index('W1118')
-        dirs.pop(w1118Index)
-        dirs.insert(0, 'W1118')
-        
-
-
-genotypes = ['CS','Dop2R','Park25','PINK1RV', r'Trp-$\gamma$']
-
-saveDir = '/media/aman/data/thesis/ClimbingPaper/data/'+baseDir.split('/')[-2]+'/'+baseDir.split('/')[-2]+'_'
-saveFiles = ''
-for _,d in enumerate(dirs):
-    saveFiles+='_'+d
-saveFiles
-
-print "Started processing directories at "+present_time()
-
 def getAllFlyStats(genotypeDir):
     '''
     returns allFlyStats for a all fly folders in a given folder (genotypeDir)
@@ -352,6 +304,12 @@ def getAllFlyStats(genotypeDir):
         cs.append([csvData, trackStats])
     
     return getFlyStats(cs, consecWin, disMinThres, disMaxThres)
+
+
+
+
+
+
 
 def getAllFlyCsvData(genotypeDir):
     '''
@@ -376,6 +334,227 @@ def getTimeDiffFromTimes(t2, t1):
     time1 = datetime.strptime(t1, '%Y%m%d_%H%M%S')
     time2 = datetime.strptime(t2, '%Y%m%d_%H%M%S')
     return (time2-time1).total_seconds()
+
+
+
+
+
+
+def getTrackDirection(trackData, minDis):
+    '''
+    returns a +1 or -1 based on direction of fly movement.
+    If the fly walks from left to right  it returns -1 (equivalent to bottom to top for climbing)
+    if the fly walks from right to left, it returns +1 (equivalent to top to bottom for climbing)
+    Value is calculated purely on the basis of a line fit on the track based on change of X-coordinate w.r.t frames
+    '''
+    dataLen = len(trackData)
+    m,c,r,_,_ = stats.linregress(np.arange(dataLen), trackData[:,0])
+    delta = (m*(9*(dataLen/10))+c)-(m*(dataLen/10)+c)
+    if delta>=minDis:
+        return -1, r
+    elif delta<=-minDis:
+        return 1, r
+    else:
+        return 0, r
+
+def getTrackData(csvdata, skipFrames, consecStep, eudDisMinThresh, eudDisMaxThresh, bodyLen, fps):
+    '''
+    Input: list of lists of 
+        a) csvdata 
+        b) CSV file and Image file path details
+    
+    returns a list containing 
+        a) X coordinate
+        b) Y coordinate
+        c) Angle b/w  i-consecStep, i, i+consecStep 
+        d) Eucledian distance between i,i+consecStep
+        
+    CSV file and Image file path details
+    '''
+    consecStep = int(consecStep)
+    angles = []
+    startFrame = consecStep*skipFrames
+    stopFrame = len(csvdata)-(consecStep*skipFrames)-1
+    for i in xrange(startFrame, stopFrame, consecStep):
+        p0 = csvdata[i-consecStep]
+        p1 = csvdata[i]
+        p2 = csvdata[i+consecStep]
+        euDis = np.linalg.norm(csvdata[i+consecStep]-csvdata[i])
+        angle = (calcAngle3Pts(p0,p1,p2))
+        if eudDisMinThresh > euDis or euDis > eudDisMaxThresh:
+            angle = np.nan
+            euDis = np.nan
+        speed = (euDis*fps)/(consecStep*bodyLen)
+        angles.append(np.array([csvdata[i][0], csvdata[i][1], angle, euDis, speed]))
+    angles = np.array(angles)
+    speedTrack = angles[:,4]
+    trackAvInsSpeed = np.nanmean(speedTrack)
+    trackDis = np.nansum(speedTrack)
+    trackAvSpeed = trackDis*fps/(consecStep*bodyLen*len(angles))
+    trackDirection = getTrackDirection(angles, bodyLen)
+    trackDetails = [trackAvInsSpeed, trackAvSpeed, trackDis, trackDirection]
+    trackDetailsHeader = ['Average InsSpeed for the track', 'AverageSpeed','Total distance of the track', 'Track Direction']
+    return angles, trackDetails, trackDetailsHeader , len(angles)#data[1] contains csv filename, data[2] contins img filename
+
+def getFlyDetails(allStats):
+    '''
+    returns average FPS, body length for a fly by getting details from its folder
+    '''
+    fps = allStats[1][-1][0,-1]
+    pixelSize =float( [x for x in allStats[1][0].split(',') if 'pixelSize' in x ][0].split(':')[-1])
+    param = allStats[1][-1][0,selParamIndex]# get selected parameter size in mm
+    blu = int(param/pixelSize) #Body length unit, used for stats calculations w.r.t the body length (minorAxis length)
+    return blu, fps
+
+
+
+
+
+def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFolder):
+    '''
+    returns the 
+        average speed
+        STDEV of average speed
+        distanceTravelled in timeThresh
+        number of tracks in timeThresh
+        distanceTravelled in unitTime
+        nTracks in unitTime
+    '''
+    flyAllData = []
+    flyAllInsSpeeds = []
+    flyGeoIndex = 0
+    for _,tr in enumerate(flyTrackData):
+        if tr[2]<timeThresh:
+            if tr[0][1][2]>trackLenThresh:
+                avSpeed = tr[0][1][1] # average speed of the fly
+                dis = tr[0][1][2] # distance covered by the fly
+                insSpeeds = tr[0][0][:,-1] # list of instantaneous speed of the track
+                flyGeoIndex+=tr[1][0] # geotactic index of the fly
+                pathR = abs(tr[1][1]) # value of 'r' value of the path
+                flyAllData.append([avSpeed, dis,flyGeoIndex, tr[0][-1], pathR, tr[2]])
+                flyAllInsSpeeds.extend(insSpeeds[~np.isnan(insSpeeds)])
+    flyAllData = np.array(flyAllData)
+    flyDisPerUnitTime = []
+    print flyAllData.shape
+    for j in xrange(unitTime, timeThresh+1, unitTime):
+        disPerUT = []
+        for i in xrange(len(flyAllData[:,-1])):
+            if (j-unitTime)<=flyAllData[i,-1]<j:
+                disPerUT.append(flyAllData[i,:])
+        flyDisPerUnitTime.append(np.array(disPerUT))
+        print"---"
+        '''
+        flyAllData contains: avSpeed per track, distance moved per track, geotactic Index, nFrames per track, time from starting imaging of the fly
+        flyAllInsSpeeds contains: a single arrray of all instaneous speeds of the fly
+        flyDisPerUnitTime contains: a list of avSpeed,DisMoved,geotactic Index,nFrames,timeFromStarting per unit time, for time segment plots
+        '''
+    return np.array(flyAllData), np.array(flyAllInsSpeeds), flyTrackData[0][-1][0].split(imFolder)[0], flyDisPerUnitTime
+
+
+
+
+
+
+
+def getLenTrackStats(trackLenArray):
+    if trackLenArray.size > 0:
+        return np.median(trackLenArray)
+    else:
+        return 0
+
+
+
+
+
+sWidth = 0.012
+sSize = 5
+sMarker = 'o'
+sAlpha = 0.6
+sLinewidth = 0.2
+sEdgCol = (0,0,0)
+sCol = (0,0,0)
+scatterDataWidth = 0.012
+def plotScatter(axis, data, scatterX, scatterWidth = sWidth, \
+                scatterRadius = sSize , scatterColor = sCol,\
+                scatterMarker = sMarker, scatterAlpha = sAlpha, \
+                scatterLineWidth = sLinewidth, scatterEdgeColor = sEdgCol, zOrder=0):
+    '''
+    Takes the data and outputs the scatter plot on the given axis.
+    
+    Returns the axis with scatter plot
+    '''
+    return axis.scatter(np.linspace(scatterWidth+scatterX, -scatterWidth+scatterX,len(data)), data,\
+            s=scatterRadius, color = scatterColor, marker=scatterMarker,\
+            alpha=scatterAlpha, linewidths=scatterLineWidth, edgecolors=scatterEdgeColor, zorder=zOrder )
+
+
+#---get the per unit time data ----
+
+def set_axis_style(ax, labels):
+    ax.get_xaxis().set_tick_params(direction='out')
+    ax.xaxis.set_ticks_position('bottom')
+    ax.set_xticks(np.arange(0, len(labels)+0))
+    ax.set_xticklabels(labels)
+    ax.set_xlim(-1, len(labels))
+
+
+
+
+
+
+
+
+
+
+
+
+
+maxTimeThresh = 300 # time for calculation of data from tracks under this much seconds
+chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
+minTrackLen = blu*10
+unitTime = 60
+
+
+disMinThres = blu/20
+disMaxThres = blu
+consecWin = 7
+trackLenThresh = 10*blu
+
+
+speedBinMin = disMinThres
+speedBinMax = disMaxThres
+speedBinStep = 0.1
+speedBins = np.arange(speedBinMin, speedBinMax, speedBinStep)
+
+baseDir = '/media/aman/data/flyWalk_data/climbingData/controls'
+#baseDir = '/media/pointgrey/data/flywalk/20180104/'
+colorsRandom = [random_color() for c in xrange(1000)]
+
+baseDir = getFolder(baseDir)
+dirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
+
+if  'W1118' in dirs:
+    if 'CS' in dirs:
+        csIndex = dirs.index('CS')
+        w1118Index = dirs.index('W1118')
+        dirs.pop(csIndex)
+        dirs.insert(0, 'CS')
+        dirs.pop(w1118Index)
+        dirs.insert(1, 'W1118')
+    else:
+        w1118Index = dirs.index('W1118')
+        dirs.pop(w1118Index)
+        dirs.insert(0, 'W1118')
+        
+genotypes = ['CS','Dop2R','Park25','PINK1RV', r'Trp-$\gamma$']
+
+saveDir = '/media/aman/data/thesis/ClimbingPaper/data/'+baseDir.split('/')[-2]+'/'+baseDir.split('/')[-2]+'_'
+saveFiles = ''
+for _,d in enumerate(dirs):
+    saveFiles+='_'+d
+saveFiles
+
+print "Started processing directories at "+present_time()
 
 
 alfa = 0.71
@@ -457,73 +636,6 @@ for g, genotype in enumerate(allGenotypesCsvData):
         for t, tracks in enumerate(fly[0]):
             print t
 
-def getTrackDirection(trackData, minDis):
-    '''
-    returns a +1 or -1 based on direction of fly movement.
-    If the fly walks from left to right  it returns -1 (equivalent to bottom to top for climbing)
-    if the fly walks from right to left, it returns +1 (equivalent to top to bottom for climbing)
-    Value is calculated purely on the basis of a line fit on the track based on change of X-coordinate w.r.t frames
-    '''
-    dataLen = len(trackData)
-    m,c,r,_,_ = stats.linregress(np.arange(dataLen), trackData[:,0])
-    delta = (m*(9*(dataLen/10))+c)-(m*(dataLen/10)+c)
-    if delta>=minDis:
-        return -1, r
-    elif delta<=-minDis:
-        return 1, r
-    else:
-        return 0, r
-
-def getTrackData(csvdata, skipFrames, consecStep, eudDisMinThresh, eudDisMaxThresh, bodyLen, fps):
-    '''
-    Input: list of lists of 
-        a) csvdata 
-        b) CSV file and Image file path details
-    
-    returns a list containing 
-        a) X coordinate
-        b) Y coordinate
-        c) Angle b/w  i-consecStep, i, i+consecStep 
-        d) Eucledian distance between i,i+consecStep
-        
-    CSV file and Image file path details
-    '''
-    consecStep = int(consecStep)
-    angles = []
-    startFrame = consecStep*skipFrames
-    stopFrame = len(csvdata)-(consecStep*skipFrames)-1
-    for i in xrange(startFrame, stopFrame, consecStep):
-        p0 = csvdata[i-consecStep]
-        p1 = csvdata[i]
-        p2 = csvdata[i+consecStep]
-        euDis = np.linalg.norm(csvdata[i+consecStep]-csvdata[i])
-        angle = (calcAngle3Pts(p0,p1,p2))
-        if eudDisMinThresh > euDis or euDis > eudDisMaxThresh:
-            angle = np.nan
-            euDis = np.nan
-        speed = (euDis*fps)/(consecStep*bodyLen)
-        angles.append(np.array([csvdata[i][0], csvdata[i][1], angle, euDis, speed]))
-    angles = np.array(angles)
-    speedTrack = angles[:,4]
-    trackAvInsSpeed = np.nanmean(speedTrack)
-    trackDis = np.nansum(speedTrack)
-    trackAvSpeed = trackDis*fps/(consecStep*bodyLen*len(angles))
-    trackDirection = getTrackDirection(angles, bodyLen)
-    trackDetails = [trackAvInsSpeed, trackAvSpeed, trackDis, trackDirection]
-    trackDetailsHeader = ['Average InsSpeed for the track', 'AverageSpeed','Total distance of the track', 'Track Direction']
-    return angles, trackDetails, trackDetailsHeader , len(angles)#data[1] contains csv filename, data[2] contins img filename
-
-def getFlyDetails(allStats):
-    '''
-    returns average FPS, body length for a fly by getting details from its folder
-    '''
-    fps = allStats[1][-1][0,-1]
-    pixelSize =float( [x for x in allStats[1][0].split(',') if 'pixelSize' in x ][0].split(':')[-1])
-    param = allStats[1][-1][0,selParamIndex]# get selected parameter size in mm
-    blu = int(param/pixelSize) #Body length unit, used for stats calculations w.r.t the body length (minorAxis length)
-    return blu, fps
-
-
 genoTypeDataProcessed = []
 for g, genotype in enumerate(allGenotypesCsvData):
     allFlyAllTracks = []
@@ -550,46 +662,6 @@ for g, genotype in enumerate(allGenotypesCsvData):
 
 
 #--- avAvspeed for each fly-----
-def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFolder):
-    '''
-    returns the 
-        average speed
-        STDEV of average speed
-        distanceTravelled in timeThresh
-        number of tracks in timeThresh
-        distanceTravelled in unitTime
-        nTracks in unitTime
-    '''
-    flyAllData = []
-    flyAllInsSpeeds = []
-    flyGeoIndex = 0
-    for _,tr in enumerate(flyTrackData):
-        if tr[2]<timeThresh:
-            if tr[0][1][2]>trackLenThresh:
-                avSpeed = tr[0][1][1] # average speed of the fly
-                dis = tr[0][1][2] # distance covered by the fly
-                insSpeeds = tr[0][0][:,-1] # list of instantaneous speed of the track
-                flyGeoIndex+=tr[1][0] # geotactic index of the fly
-                pathR = abs(tr[1][1]) # value of 'r' value of the path
-                flyAllData.append([avSpeed, dis,flyGeoIndex, tr[0][-1], pathR, tr[2]])
-                flyAllInsSpeeds.extend(insSpeeds[~np.isnan(insSpeeds)])
-    flyAllData = np.array(flyAllData)
-    flyDisPerUnitTime = []
-    print flyAllData.shape
-    for j in xrange(unitTime, timeThresh+1, unitTime):
-        disPerUT = []
-        for i in xrange(len(flyAllData[:,-1])):
-            if (j-unitTime)<=flyAllData[i,-1]<j:
-                disPerUT.append(flyAllData[i,:])
-        flyDisPerUnitTime.append(np.array(disPerUT))
-        print"---"
-        '''
-        flyAllData contains: avSpeed per track, distance moved per track, geotactic Index, nFrames per track, time from starting imaging of the fly
-        flyAllInsSpeeds contains: a single arrray of all instaneous speeds of the fly
-        flyDisPerUnitTime contains: a list of avSpeed,DisMoved,geotactic Index,nFrames,timeFromStarting per unit time, for time segment plots
-        '''
-    return np.array(flyAllData), np.array(flyAllInsSpeeds), flyTrackData[0][-1][0].split(imFolder)[0], flyDisPerUnitTime
-
 maxTimeThresh = 300 # time for calculation of data from tracks under this much seconds
 chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
 minTrackLen = blu*3
@@ -694,12 +766,6 @@ plotYLabels5min = ['Number of Tracks',
                 'Geotactic Index',
                 ]
 
-def getLenTrackStats(trackLenArray):
-    if trackLenArray.size > 0:
-        return np.median(trackLenArray)
-    else:
-        return 0
-
 
 vPlotPos = np.arange(len(genotypes))
 sWidth = 0.012
@@ -710,29 +776,6 @@ sLinewidth = 0.2
 sEdgCol = (0,0,0)
 sCol = genotypeMarker[0]
 scatterDataWidth = 0.012
-
-def plotScatter(axis, data, scatterX, scatterWidth = sWidth, \
-                scatterRadius = sSize , scatterColor = sCol,\
-                scatterMarker = sMarker, scatterAlpha = sAlpha, \
-                scatterLineWidth = sLinewidth, scatterEdgeColor = sEdgCol, zOrder=0):
-    '''
-    Takes the data and outputs the scatter plot on the given axis.
-    
-    Returns the axis with scatter plot
-    '''
-    return axis.scatter(np.linspace(scatterWidth+scatterX, -scatterWidth+scatterX,len(data)), data,\
-            s=scatterRadius, color = scatterColor, marker=scatterMarker,\
-            alpha=scatterAlpha, linewidths=scatterLineWidth, edgecolors=scatterEdgeColor, zorder=zOrder )
-
-
-#---get the per unit time data ----
-
-def set_axis_style(ax, labels):
-    ax.get_xaxis().set_tick_params(direction='out')
-    ax.xaxis.set_ticks_position('bottom')
-    ax.set_xticks(np.arange(0, len(labels)+0))
-    ax.set_xticklabels(labels)
-    ax.set_xlim(-1, len(labels))
 
 
 allGenotypePerUT_Data = []
@@ -934,15 +977,15 @@ if 'CS' in dirs:
             patch.set_edgecolor(None)
             patch.set_alpha(vAlphaCS)
     
-#    for i in xrange(len(axP)):
-#        for j in xrange(nParamsToPlot):
-#            plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
-#            plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
-#            plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
-#            plt.setp(ax[i,j], ylabel = plotYLabels[j])
-#            plt.setp(ax[i,j], **axP[i][j])
-#            if i==tSeriesPlotIndex:
-#                plt.setp(ax[i,j], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
+    for i in xrange(len(axP)):
+        for j in xrange(nParamsToPlot):
+            plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
+            plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
+            plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
+            plt.setp(ax[i,j], ylabel = plotYLabels[j])
+            plt.setp(ax[i,j], **axP[i][j])
+            if i==tSeriesPlotIndex:
+                plt.setp(ax[i,j], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
     plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,2], xticks = [0], xticklabels = [])
     plt.savefig(csFigNamePng, dpi=dpi, format='png')
     plt.savefig(csFigNameSvg, format='svg')

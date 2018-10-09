@@ -33,9 +33,6 @@ params['flyareaMax'] = 2100
 
 params['blurKernel'] = 11
 
-workers = 4
-
-
 def present_time():
         now = datetime.now()
         return now.strftime('%Y%m%d_%H%M%S')

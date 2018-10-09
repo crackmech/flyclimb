@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Apr 27 15:43:15 2018
+
+@author: pointgrey
+"""
+
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 """
@@ -12,9 +20,107 @@ Created on Tue Mar  6 14:25:20 2018
 
 @author: aman
 """
+import numpy as np
+disPerMin       = 4000
+disTotal        = 20000
+csTotalTracks   = 21
+#----------- Set Values for setting X-Y limits on the plots -------
+nTrackPerMin    = 6
+nTrackTotal     = 35
+nSecsDurPerMin  = 7
+nSecsDurTotal   = 13
+avSpeedPerMin   = 7
+avSpeedTotal    = 8
+disTotal        = 23000
+
+#--- for CS, fig 2 -------
+#nTrackPerMin    = 6
+#nTrackTotal     = 25
+#nSecsDurTotal   = 13
+#avSpeedPerMin   = 7
+#avSpeedTotal    = 8
+
+##----------- for Park flies' data, fig 3 -------
+#nTrackPerMin    = 5
+#nSecsDurPerMin  = 7
+#nTrackTotal     = 29
+#nSecsDurTotal   = 9
+#avSpeedPerMin   = 5
+#avSpeedTotal    = 7
+
+##----------- for Trp-Gamma data, fig 4 -------
+#nTrackPerMin    = 6
+#nTrackTotal     = 35
+#nSecsDurPerMin  = 7
+#nSecsDurTotal   = 9
+#avSpeedPerMin   = 5
+#avSpeedTotal    = 8
+#disTotal        = 23000
+
+##----------- for ALL flies' data, fig 5 -------
+#nTrackPerMin    = 6
+#nTrackTotal     = 35
+#nSecsDurPerMin  = 7
+#nSecsDurTotal   = 13
+#avSpeedPerMin   = 7
+#avSpeedTotal    = 8
+#disTotal        = 23000
+
+
+maxTimeThresh   = 300 # time for calculation of data from tracks under this much seconds
+
+
+
+unitTime = 60
+nUnitTimes = maxTimeThresh/unitTime
+figWidth = 1.4*nUnitTimes
+figHeight = figWidth/1.618
+fontSize = (8/7.0)*figWidth
+
+nNumTracksTotalTicks    = 6
+nDisYTicks              = 6
+nSecsDurTotalTicks      = 6
+
+ntSeriesXTicks          = 5
+
+nNumTracksTotalStep = nTrackTotal/nNumTracksTotalTicks#5
+nSecsDurTotalStep = nSecsDurTotal/nSecsDurTotalTicks#2
+
+tSeriesXtickStep = nUnitTimes/ntSeriesXTicks
+
+distickStep = 1000
+disTotalTicks = disTotal/distickStep
+disticks = disPerMin/distickStep
+disTickScale = 1000
+disTotalStep = (disTotal/(nDisYTicks*disTickScale))*disTickScale
+disTotalTicksStep = disTotalStep/disTickScale
+trackFPS = 35
+
+#------ for fig 2------
+ax00 = {'yticks': np.arange(0, nTrackPerMin) }
+#ax10 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
+ax10 = {'yticks': np.arange(0,nTrackTotal,nNumTracksTotalStep), 'ylim':(0,nTrackTotal+1)}
+ax01 = {'yticks': np.arange(0, trackFPS*nSecsDurPerMin, 2*trackFPS) , 'yticklabels':  np.arange(0,nSecsDurPerMin,2), 'ylim':(0,trackFPS*nSecsDurPerMin)}
+ax11 = {'yticks': np.arange(0, trackFPS*nSecsDurTotal, trackFPS*nSecsDurTotalStep),'yticklabels':  np.arange(0,nSecsDurTotal,nSecsDurTotalStep), 'ylim':(0,trackFPS*nSecsDurTotal) }
+ax02 = {'yticks': np.arange(0,disPerMin,distickStep), 'yticklabels': np.arange(disticks),'ylim': (0,disPerMin-distickStep/2)  }
+ax12 = {'yticks': np.arange(0,disTotal,disTotalStep), 'yticklabels': np.arange(0,disTotalTicks,disTotalTicksStep), 'ylim':(0,disTotal) }
+ax03 = {'yticks': np.arange(0,avSpeedPerMin,2),'ylim': (0,avSpeedPerMin)}
+ax13 = {'yticks': np.arange(0,avSpeedTotal),'ylim': (0,avSpeedTotal)}
+ax04 = {'ylim': (0, 1.1), 'yticks': [0, 0.5, 1], 'yticklabels': [0, 0.5, 1]}
+ax14 = {'ylim': (0, 1.1), 'yticks': [0, 0.25, 0.5, 0.75, 1], 'yticklabels': [0, 0.25, 0.5, 0.75, 1]}
+ax05 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
+ax15 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
+
+axP = [
+        [ax10, ax11, ax12, ax13, ax14, ax15],
+        [ax00, ax01, ax02, ax03, ax04, ax05]
+      ]
+
+
+
 imgDatafolder = 'imageData'
 trackImExtension = '.jpeg'
-csvExt = '.csv'
+csvExt = 'trackData*.csv'
 headers = ['area_average(mm^2)', 'minorAxis_average(mm)', 'majorAxis_average(mm)',\
             'area_median(mm^2)', 'minorAxis_median(mm)', 'majorAxis_median(mm)' ,\
             'nFrames', 'FPS', 'folderName']
@@ -33,17 +139,66 @@ AngBinMin = 0
 AngBinMax = 180
 AngBinStep = 1
 
+chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
+minTrackLen = blu*10
 
-# import time
-# import copy
-# import sys
-# from math import atan2, degrees
-# from thread import start_new_thread as startNT
 
-# import cv2
+disMinThres = blu/20
+disMaxThres = blu
+consecWin = 7
+trackLenThresh = 10*blu
+
+legendHorPos = 0.18
+legendVerPos = 1.058
+figLabelSize = 12
+figLabelXoffset = 0.03
+xFactor = 0.2
+yUp = 0.98
+yDown = 0.3
+figLabels = [["A","B","C","D","E"],["A'","B'","C'","D'","E'"]]
+figLabelPositions = [[[i*xFactor,yUp] for i in xrange(5)], [[i*xFactor,yDown] for i in xrange(5)]]
+
+gtiYUp = 0.91
+gtiFigLabelXoffset = 0.128
+gtiYDown = 0.29
+gtiFigLabels = ["C","C'"]
+gtiFigLabelPositions = [[gtiFigLabelXoffset,gtiYUp],[gtiFigLabelXoffset,gtiYDown]]
+
+
+tSeriesPlotIndex = 1
+total5MinPlotIndex = 0
+
+nPlotStacks = 2
+figRatio = [3,1]
+tightLayout = False
+wSpace = 0.4
+hSpace = 0.15
+marginLeft = 0.05
+marginRight = 0.99
+marginTop = 0.97
+marginBottom = 0.082
+markerSize = 4.0
+lineWidth = 0.95
+medianWidth = 0.25
+
+sWidth = 0.15#0.012
+sSize = 5
+sMarker = 'o'
+sAlpha = 0.6
+sLinewidth = 0.2
+sEdgCol = (0,0,0)
+scatterDataWidth = 0.012
+sCol = (1,1,1)
+
+legendHorPos = 0.25
+legendVerPos = 1.058
+legendAxesRowSet = total5MinPlotIndex
+legendAxesRowGet = tSeriesPlotIndex
+legendAxesColSet = 4
+legendAxesColGet = 4
+
 import os
 import glob
-import numpy as np
 import re
 import random
 from datetime import datetime
@@ -52,25 +207,23 @@ import tkFileDialog as tkd
 import matplotlib.pyplot as plt
 from scipy import stats
 import xlwt
-import dip
 import matplotlib
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.markers import MarkerStyle
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 font = {'family' : 'normal',
         'weight' : 'normal',
-        'size'   : 18}
+        'size'   : (8/7.0)*figWidth}
 
 plt.rc('font', **font)          # controls default text sizes
-#plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
-plt.rc('axes', labelsize=22)    # fontsize of the x and y labels
-# plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-# plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
-# plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
-# plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure titlecol = 1
+plt.rc('axes', labelsize=figWidth*3)    # fontsize of the x and y labels
 col=1
 plt.rcParams['axes.facecolor'] = (col,col,col)
+
+plt.rc('font', family='serif', serif='Arial', size=fontSize)
+plt.rc('ytick', labelsize=fontSize)
+plt.rc('axes', labelsize=fontSize)
+plt.rc('xtick', labelsize=fontSize)
+
 
 angleBins = np.arange(AngBinMin, AngBinMax, AngBinStep)
 
@@ -288,16 +441,6 @@ def getMedian(dataArray, i):
         med[j] = getHistMode(dataArray[:,j], bins)[0]
     return med
 
-maxTimeThresh = 300 # time for calculation of data from tracks under this much seconds
-chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
-minTrackLen = blu*10
-unitTime = 60
-
-
-disMinThres = blu/20
-disMaxThres = blu
-consecWin = 7
-trackLenThresh = 10*blu
 
 
 speedBinMin = disMinThres
@@ -306,7 +449,8 @@ speedBinStep = 0.1
 speedBins = np.arange(speedBinMin, speedBinMax, speedBinStep)
 
 baseDir = '/media/aman/data/flyWalk_data/climbingData/'
-#baseDir = '/media/pointgrey/data/flywalk/20180104/'
+#baseDir = '/media/pointgrey/data/flywalk/'
+#baseDir = '/media/pointgrey/data/flywalk/climbingData/plots/csvDir_20180901/fig3/'
 colorsRandom = [random_color() for c in xrange(1000)]
 
 baseDir = getFolder(baseDir)
@@ -325,11 +469,7 @@ if  'W1118' in dirs:
         dirs.pop(w1118Index)
         dirs.insert(0, 'W1118')
         
-
-
-genotypes = ['CS','Dop2R','Park25','PINK1RV', r'Trp-$\gamma$']
-
-saveDir = '/media/aman/data/thesis/ClimbingPaper/data/'+baseDir.split('/')[-2]+'/'+baseDir.split('/')[-2]+'_'
+saveDir = baseDir+'_'
 saveFiles = ''
 for _,d in enumerate(dirs):
     saveFiles+='_'+d
@@ -423,13 +563,25 @@ for i, gt in enumerate(dirs):
         genotypes.append(r'Park$^2$$^5$/+')
         colors.append((70/div,0/div,10/div,alfa))
         markers.append('o')
-    elif gt in ('PINK1RV', 'pink1rv'):
+    elif gt in ('1_PINK1RV', 'pink1rv'):
         genotypes.append(r'PINK1$^R$$^V$')
         colors.append((204/div,121/div,167/div,alfa))
         markers.append('d')
     elif gt in ('PARK25_TM3', 'Park25_TM3'):
         genotypes.append(r'Park$^2$$^5$/TM3')
         colors.append((86/div,180/div,233/div,alfa))
+        markers.append('v')
+    elif gt in ('PARK25xLrrk-ex1', '4_Park25xLrrk-ex1'):
+        genotypes.append(r'Park$^2$$^5$/Lrrk$^e$$^x$$^1$')
+        colors.append((86/div,180/div,233/div,alfa))
+        markers.append('s')
+    elif gt in ('W1118xLrrk-ex1', 'w1118xLrrk-ex1','3_Lrrk-ex1xW1118' ):
+        genotypes.append(r'Lrrk$^e$$^x$$^1$/W$^1$$^1$$^1$$^8$')
+        colors.append((180/div,109/div,0/div,alfa))
+        markers.append('v')
+    elif gt in ('2_PARK25xW1118', 'Park25xw1118', '2_Park25xW1118'):
+        genotypes.append(r'Park$^2$$^5$/W$^1$$^1$$^1$$^8$')
+        colors.append((70/div,0/div,10/div,alfa))
         markers.append('v')
     elif gt in ('Dop2R', 'dop2r'):
         genotypes.append(gt)
@@ -560,6 +712,7 @@ def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFol
         distanceTravelled in unitTime
         nTracks in unitTime
     '''
+    print flyTrackData[0][-1][0].split('/')[-3]
     flyAllData = []
     flyAllInsSpeeds = []
     flyGeoIndex = 0
@@ -582,7 +735,6 @@ def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFol
             if (j-unitTime)<=flyAllData[i,-1]<j:
                 disPerUT.append(flyAllData[i,:])
         flyDisPerUnitTime.append(np.array(disPerUT))
-        print"---"
         '''
         flyAllData contains: avSpeed per track, distance moved per track, geotactic Index, nFrames per track, time from starting imaging of the fly
         flyAllInsSpeeds contains: a single arrray of all instaneous speeds of the fly
@@ -590,11 +742,8 @@ def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFol
         '''
     return np.array(flyAllData), np.array(flyAllInsSpeeds), flyTrackData[0][-1][0].split(imFolder)[0], flyDisPerUnitTime
 
-maxTimeThresh = 300 # time for calculation of data from tracks under this much seconds
 chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
 minTrackLen = blu*3
-unitTime = 60
-nUnitTimes = maxTimeThresh/unitTime
 nParams = 6
 unitDataIndex = -1
 xlGapColumns = 2
@@ -619,8 +768,6 @@ genotypeStraight =[]
 genotypeInsSpeed = []
 genotypeName = []
 genotypeMarker = []
-# genotypeDisPerUT = []
-# genotypeNTrackPerUT = []
 
 for _,genotype in enumerate(allGenotypeMovementData):
     flyName = []
@@ -662,36 +809,55 @@ for _,genotype in enumerate(allGenotypeMovementData):
     genotypeName.append(flyName)
     genotypeMarker.append(flyMarker)
 
-plotTitles = ['Number of Tracks\nin 5 minutes',
-              'Duration of Tracks',
-              'Total Distance Travelled\nin 5 minutes',
+#plotTitles = ['Number of Tracks\nin 5 minutes',
+#              'Duration of Tracks',
+#              'Total Distance Travelled\nin 5 minutes',
+#              'Average Speed',
+#              'Path Straightness',
+#              'Geotactic Index',
+#              ]
+#
+#plotTitlesPerUT = ['Number of Tracks',
+#              'Duration of Tracks',
+#              'Total Distance Travelled',
+#              'Average Speed',
+#              'Path Straightness',
+#              'Geotactic Index',
+#              ]
+#
+#plotYLabels = ['Number of Tracks',
+#                'duration of Tracks\n(s)',
+#                'Distance Traveled\n'+r'(BLU x10$^3$)',
+#                'Average Speed\n(BLU/S)',
+#                'Path Straightness\n'+r'(R$^2$ Value)',
+#                'Geotactic Index',
+#                ]
+#
+#plotYLabels5min = ['Number of Tracks',
+#                'Seconds',
+#                r'Body Lengths (x10$^3$)',
+#                'Body Length / S',
+#                r'R$^2$ Value',
+#                'Geotactic Index',
+#                ]
+#
+#
+
+
+plotTitles = ['Number of Tracks',
+              'Track Duration',
+              'Distance Traveled',
               'Average Speed',
-              'Path Straightness',
-              'Geotactic Index',
-              ]
+              'Straightness',
+              'Geotactic Index'
+             ]
 
-plotTitlesPerUT = ['Number of Tracks',
-              'Duration of Tracks',
-              'Total Distance Travelled',
-              'Average Speed',
-              'Path Straightness',
-              'Geotactic Index',
-              ]
-
-plotYLabels = ['Number of Tracks',
-                'duration of Tracks\n(s)',
-                'Distance Traveled\n'+r'(BLU x10$^3$)',
-                'Average Speed\n(BLU/S)',
-                'Path Straightness\n'+r'(R$^2$ Value)',
-                'Geotactic Index',
-                ]
-
-plotYLabels5min = ['Number of Tracks',
-                'Seconds',
-                r'Body Lengths (x10$^3$)',
-                'Body Length / S',
-                r'R$^2$ Value',
-                'Geotactic Index',
+plotYLabels = ['number',
+               'seconds',
+               r'BLU (x10$^3$)',
+               'BLU/S',
+               r'R$^2$ Value',
+               'Geotactic Index',
                 ]
 
 def getLenTrackStats(trackLenArray):
@@ -702,14 +868,6 @@ def getLenTrackStats(trackLenArray):
 
 
 vPlotPos = np.arange(len(genotypes))
-sWidth = 0.012
-sSize = 5
-sMarker = 'o'
-sAlpha = 0.6
-sLinewidth = 0.2
-sEdgCol = (0,0,0)
-sCol = genotypeMarker[0]
-scatterDataWidth = 0.012
 
 def plotScatter(axis, data, scatterX, scatterWidth = sWidth, \
                 scatterRadius = sSize , scatterColor = sCol,\
@@ -754,6 +912,298 @@ for _,genotype in enumerate(allGenotypeMovementData):
     allGenotypePerUT_Data.append(genotypePerUT_Data)
     # allGenotypePerUT_Data.append(np.array(genotypePerUT_Data))
 
+
+bAlpha = 0.5
+vAlpha = 0.5
+vAlphaCS = 0.5
+
+nParamsToPlot = nParams-1
+
+dataToPlot = [genotypeNTracks,
+              genotypeLenTrack,
+              genotypeDis,
+              genotypeAvSpeed,
+              genotypeStraight,
+              genotypeGeoTacInd]
+
+
+
+showMeans = False
+showMedians = True
+showExtrema = False
+medianColor = 'Orange'
+vPlotLineShow = 'cmedians'
+
+
+bwMethod = 'silverman'
+boxLineWidth = 0.5
+boxprops = dict(linestyle='--', linewidth=boxLineWidth)
+whiskerprops = dict(linestyle='--', linewidth=boxLineWidth)
+capprops = dict(linestyle='--', linewidth=boxLineWidth)
+medianprops = dict(linestyle = None, linewidth=0)
+boxPro = dict(boxprops=boxprops, whiskerprops=whiskerprops, capprops=capprops)
+
+
+ptime = present_time()
+figDir = baseDir+'../'
+csFigNamePng = ('%s/png/%s_CS.png'%(figDir, ptime))
+csFigNamePdf = ('%s/%s_CS.pdf'%(figDir, ptime))
+combinedFigNamePng = ('%s/png/%s_%s.png'%(figDir, ptime, '_'.join(dirs)))
+combinedFigNamePdf = ('%s/%s_%s.pdf'%(figDir, ptime, '_'.join(dirs)))
+csFigNameSvg = ('%s/%s_CS.svg'%(figDir, ptime))
+combinedFigNameSvg = ('%s/%s_%s.svg'%(figDir, ptime, '_'.join(dirs)))
+gtiFigNamePng = ('%s/png/%s_%s_GTI.png'%(figDir, ptime, '_'.join(dirs)))
+gtiFigNamePdf = ('%s/%s_%s_GTI.pdf'%(figDir, ptime, '_'.join(dirs)))
+gtiFigNameSvg = ('%s/%s_%s_GTI.svg'%(figDir, ptime, '_'.join(dirs)))
+dpi = 300
+
+sMarkers  = ['o' for x in sMarkers]
+
+if 'CS' in dirs:
+    csIndex = dirs.index('CS')
+    csGT = allGenotypePerUT_Data[csIndex]
+    data = np.nanmean(csGT[:], axis=0)
+    sem = stats.sem(csGT[:], axis=0)
+    vPlotPosCS = [csIndex+1]
+    ax10 = {'yticks': np.arange(0,csTotalTracks,4), 'ylim':(0,csTotalTracks)}
+    ax14 = {'ylim': (0, 1.2), 'yticks': [0, 0.25, 0.5, 0.75, 1], 'yticklabels': [0, 0.25, 0.5, 0.75, 1]}
+    axP[0][0]=ax10
+    axP[0][4]=ax14
+    fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
+    fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
+    for i in xrange(nParamsToPlot):
+            ax[tSeriesPlotIndex, i].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], \
+              color=colors[0], fmt='-'+markers[0], markersize=markerSize, linewidth = lineWidth)
+    bPlots = []
+    vPlots = []
+    for i in xrange(nParamsToPlot):
+        plotData = dataToPlot[i][csIndex]
+        vp = ax[total5MinPlotIndex, i].violinplot(plotData, vPlotPosCS, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
+        bp = ax[total5MinPlotIndex, i].boxplot(plotData, sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
+        plotScatter(ax[total5MinPlotIndex, i], plotData, scatterX = vPlotPosCS[0], scatterMarker = sMarkers[csIndex], scatterColor = genotypeMarker[csIndex], zOrder=2)
+        ax[total5MinPlotIndex, i].hlines(np.median(plotData), vPlotPosCS[0]-medianWidth, vPlotPosCS[0]+medianWidth, colors=medianColor, alpha=0.8, zorder=4)
+        vPlots.append(vp)
+        bPlots.append(bp)
+    for vplot in vPlots:
+        vplot[vPlotLineShow].set_color(medianColor)
+        for patch, color in zip(vplot['bodies'], colors):
+            patch.set_color(color)
+            patch.set_edgecolor(None)
+            patch.set_alpha(vAlphaCS)
+    for i in xrange(len(axP)):
+        for j in xrange(nParamsToPlot):
+            ax[i,j].text(figLabelPositions[i][j][0]+figLabelXoffset, figLabelPositions[i][j][1], figLabels[i][j],\
+                         fontsize=figLabelSize, transform=plt.gcf().transFigure)
+            plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
+            plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
+            plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
+            plt.setp(ax[i,j], ylabel = plotYLabels[j])
+            plt.setp(ax[i,j], **axP[i][j])
+            if i==tSeriesPlotIndex:
+                plt.setp(ax[i,j], xticks = np.arange(0,nUnitTimes), xticklabels = np.arange(1,nUnitTimes+1))
+            elif i==total5MinPlotIndex:
+                ax[i,j].set_title(plotTitles[j], y=1.08, loc='center')
+    plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,2], xticks = [0], xticklabels = [])
+    ax[tSeriesPlotIndex,total5MinPlotIndex].add_patch(plt.Rectangle((0,-2.25),29, 0.85,facecolor='0.9',clip_on=False,linewidth = 0))
+    plt.setp(ax[tSeriesPlotIndex,nParamsToPlot/2], xlabel = 'minutes')
+    plt.savefig(csFigNamePng, dpi=dpi, format='png')
+    plt.savefig(csFigNamePdf, format='pdf')
+    plt.savefig(csFigNameSvg, format='svg')
+    # plt.show()
+
+ax10 = {'yticks': np.arange(0,nTrackTotal,nNumTracksTotalStep), 'ylim':(0,nTrackTotal+1)}
+axP[0][0]=ax10
+
+fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
+fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
+for c, gt in enumerate(allGenotypePerUT_Data):
+    data = np.nanmean(gt[:], axis=0)
+    sem = stats.sem(gt[:], axis=0)
+    tPlots = []
+    for i in xrange(0, nParamsToPlot):
+        tp = ax[tSeriesPlotIndex,i].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], \
+               color=colors[c], fmt='-'+markers[c], label=genotypes[c], markersize=markerSize, linewidth = lineWidth)
+        tPlots.append(tp)
+legendHandles, legendLabels = ax[legendAxesRowGet, legendAxesColGet].get_legend_handles_labels()
+#ax[legendAxesRowSet, legendAxesColSet].legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(legendHorPos, legendVerPos), loc=2, shadow=True, edgecolor=(0,0,0), fontsize='x-small', ncol=len(genotypes)).draggable()
+bPlots = []
+vPlots = []
+for i in xrange(0, nParamsToPlot):
+    plotData = dataToPlot[i]
+    vp = ax[total5MinPlotIndex, i].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
+    bp = ax[total5MinPlotIndex, i].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
+    for s,scatterPlotData in enumerate(plotData):
+        plotScatter(ax[total5MinPlotIndex, i], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
+        ax[total5MinPlotIndex, i].hlines(np.median(scatterPlotData), s+1-medianWidth, s+1+medianWidth, colors=medianColor, alpha=0.8, zorder=4)
+    vPlots.append(vp)
+    bPlots.append(bp)
+for vplot in vPlots:
+    vplot[vPlotLineShow].set_color(medianColor)
+    vplot[vPlotLineShow].set_zorder(4)
+    for patch, color in zip(vplot['bodies'], colors):
+        patch.set_color(color)
+        patch.set_edgecolor(None)
+        patch.set_alpha(vAlpha)
+for i in xrange(0, len(axP)):
+    for j in xrange(0, nParamsToPlot):
+        ax[i,j].text(figLabelPositions[i][j][0]+figLabelXoffset, figLabelPositions[i][j][1], figLabels[i][j],\
+                     fontsize=figLabelSize, transform=plt.gcf().transFigure)
+        plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
+        plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
+        plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
+        plt.setp(ax[i,j], ylabel = plotYLabels[j])
+        plt.setp(ax[i,j], **axP[i][j])
+        if i==tSeriesPlotIndex:
+            plt.setp(ax[i,j], xticks = np.arange(0,nUnitTimes, tSeriesXtickStep), xticklabels = np.arange(1,nUnitTimes+1, tSeriesXtickStep))
+        elif i==total5MinPlotIndex:
+            ax[i,j].set_title(plotTitles[j], y=1.08, loc='center')
+plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
+ax[tSeriesPlotIndex,total5MinPlotIndex].add_patch(plt.Rectangle((0,-2.25),29, 0.85,facecolor='0.9',clip_on=False,linewidth = 0))
+plt.setp(ax[tSeriesPlotIndex,nParamsToPlot/2], xlabel = 'minutes')
+legend = fig.legend(handles=legendHandles,labels=legendLabels, \
+                  loc='lower center', edgecolor=(0,0,0), fontsize=8, ncol=len(genotypes),\
+                   bbox_transform=plt.gcf().transFigure)
+#legend.set_bbox_to_anchor((0.5, -0.06))
+plt.savefig(combinedFigNameSvg, format='svg')
+plt.savefig(combinedFigNamePdf, format='pdf')
+plt.savefig(combinedFigNamePng, dpi=dpi, format='png')
+# plt.show()
+
+# produce a legend for the objects in the other figure
+legend_fig = plt.figure()
+legend = plt.figlegend(*fig.gca().get_legend_handles_labels(), edgecolor=(0,0,0), fontsize=8,  ncol=len(genotypes))
+legend_fig.savefig(combinedFigNameSvg+'_legend.pdf', format='pdf')
+
+gtinParamsToPlot = 1
+gtiFigWidth = 2.2
+gtiFigHeight = figHeight+0.5
+
+gtiMarginLeft = 0.2
+gtiMarginRight = marginRight
+gtiMarginTop = marginTop-0.07
+gtiMarginBottom  = marginBottom + 0.01
+gtilegendVerPos = legendVerPos+0.1
+ax0 = {'yticks': np.arange(-1, 2), 'ylim':(1.2, -1.2) }
+axP1 = [ax0, ax0]
+
+
+#-----GeoTacticIndex Plot-------
+
+fig, ax = plt.subplots(nPlotStacks, gtinParamsToPlot, figsize=(1.8, gtiFigHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
+fig.subplots_adjust(left=gtiMarginLeft, bottom=gtiMarginBottom, right=gtiMarginRight, top=gtiMarginTop, wspace = wSpace, hspace = hSpace)
+for c, gt in enumerate(allGenotypePerUT_Data):
+    data = np.nanmean(gt[:], axis=0)
+    sem = stats.sem(gt[:], axis=0)
+    tPlots = []
+    i=-1
+    tp = ax[tSeriesPlotIndex].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i],\
+           color=colors[c], fmt='-'+markers[c], label=genotypes[c], markersize=markerSize, linewidth = lineWidth)
+legendHandles, legendLabels = ax[tSeriesPlotIndex].get_legend_handles_labels()
+plotData = dataToPlot[i]
+vp = ax[total5MinPlotIndex].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
+bp = ax[total5MinPlotIndex].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
+for s,scatterPlotData in enumerate(plotData):
+    plotScatter(ax[total5MinPlotIndex], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
+    ax[total5MinPlotIndex].hlines(np.median(scatterPlotData), s+1-medianWidth, s+1+medianWidth, colors=medianColor, alpha=0.8, zorder=4)
+vp[vPlotLineShow].set_color(medianColor)
+for patch, color in zip(vp['bodies'], colors):
+    patch.set_color(color)
+    patch.set_edgecolor(None)
+    patch.set_alpha(vAlpha)
+
+for i in xrange(0, len(axP1)):
+    ax[i].text(gtiFigLabelPositions[i][0], gtiFigLabelPositions[i][1], gtiFigLabels[i],\
+                 fontsize=figLabelSize, transform=plt.gcf().transFigure)
+    plt.setp([ax[i].spines[x].set_visible(False) for x in ['top','right']])
+    plt.setp(ax[i].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
+    plt.setp(ax[i].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
+    plt.setp(ax[i], ylabel = plotYLabels[-1])
+    plt.setp(ax[i], **axP1[i])
+    if i==tSeriesPlotIndex:
+        plt.setp(ax[i],  xticks = np.arange(0,nUnitTimes, tSeriesXtickStep), xticklabels = np.arange(1,nUnitTimes+1, tSeriesXtickStep))
+    ax[tSeriesPlotIndex,].set_xlabel('minutes')
+    legend = fig.legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(0.5, -0.06),\
+                      loc='lower center',edgecolor=(0,0,0), fontsize=6, ncol=len(genotypes),\
+                       bbox_transform=plt.gcf().transFigure)
+    plt.setp(ax[total5MinPlotIndex], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
+ax[tSeriesPlotIndex].add_patch(plt.Rectangle((0,1.80),4, 0.40,facecolor='0.9',clip_on=False,linewidth = 0))
+
+plt.savefig(gtiFigNamePng, dpi=dpi, format='png')
+plt.savefig(gtiFigNamePdf, format='pdf')
+plt.savefig(gtiFigNameSvg, format='svg')
+# plt.show()
+
+
+
+
+sheetNames = ['NumTracks','TrackDuration','TotalDistance',\
+              'AvSpeed','GeotacticIndex', 'Straightness', 'flyDetails']
+
+columnHeader = 'TimePoint'
+skipheaderCells = 2
+
+#---- Save sheet for Per minute data------------
+paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
+sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
+for g, gt in enumerate(allGenotypePerUT_Data):
+    for f, fly in enumerate(gt):
+        for timepoint in xrange(fly.shape[0]):
+            for parameter in xrange(fly.shape[1]):
+                col = g+(timepoint*(len(allGenotypePerUT_Data)+xlGapColumns))
+                if f==0:
+                    if g==0:
+                        timepointHeader =  '%s: %d minute'%(columnHeader, timepoint+1)
+                        sheets[parameter].write(f,col+len(allGenotypePerUT_Data)/2,timepointHeader)
+                    sheets[parameter].write(f+1, col, dirs[g])
+                row = f+skipheaderCells
+                sheets[parameter].write(row,col, fly[timepoint, parameter])
+
+xlName = "climbingPerMinuteParameters_genotypesTogether"
+paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
+
+
+paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
+sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
+for g, gt in enumerate(allGenotypePerUT_Data):
+    for f, fly in enumerate(gt):
+        for timepoint in xrange(fly.shape[0]):
+            for parameter in xrange(fly.shape[1]):
+                col = timepoint+(g*(fly.shape[0]+xlGapColumns))
+                if f==0:
+                    timepointHeader =  '%d minute'%(timepoint+1)
+                    sheets[parameter].write(f+1,col,timepointHeader)
+                    if timepoint==0:
+                        sheets[parameter].write(f, col+len(allGenotypePerUT_Data)/2, dirs[g])
+                row = f+skipheaderCells
+                sheets[parameter].write(row,col, fly[timepoint, parameter])
+    
+xlName = "climbingPerMinuteParameters_timepointsTogether"
+paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
+
+#---- Save sheet for 5minutes data------------
+genotypeParams = [genotypeNTracks,
+                  genotypeLenTrack,
+                  genotypeDis,
+                  genotypeAvSpeed,
+                  genotypeGeoTacInd,
+                  genotypeStraight,
+                  genotypeName]
+paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
+sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
+
+for s in xrange(len(sheets)):
+    sheet = sheets[s]
+    for g in xrange(len(genotypeParams[s])):
+        for row in xrange(len(genotypeParams[s][g])):
+            if row==0:
+                sheet.write(row,g,dirs[g])
+            sheet.write(row+skipheaderCells,g,genotypeParams[s][g][row])
+
+xlName = "climbingParameters5Minutes_genotypesTogether"
+paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
+
+
+
 #------- CHECK for NORMALITY --------
 params = ['nTracks', 'trackDuration', 'Distance',\
           'Speed', 'PathStraightness', 'GeotacticIndex']
@@ -763,7 +1213,7 @@ genotypeParams = [genotypeNTracks,
                   genotypeAvSpeed,
                   genotypeStraight,
                   genotypeGeoTacInd]
-# f = open(saveDir + "climbing5MinutesStats"+saveFiles+".csv", 'wa')
+
 f = open(("%s%s_climbing5MinutesStats%s.csv"%(saveDir, present_time(), saveFiles)), 'wa')
 #--Check normality for 5 minutes data----
 print '\n\n\n----Check normality for 5 minutes data----'
@@ -794,334 +1244,4 @@ for t in xrange(nUnitTimes):
         print '---OneWayANOVA:',stats.f_oneway(*gtData)
         f.write('\n:%s (%d minute): %s'%(params[p], t+1, str(stats.kruskal(*gtData))))
 f.close()
-
-
-trackFPS = 35
-bAlpha = 0.5
-vAlpha = 0.5
-vAlphaCS = 0.5
-
-
-
-plotYLabels = ['Number of Tracks\n\n(number)',
-                'Duration of Tracks\n\n(s)',
-                'Distance Traveled\n\n'+r'(BLU x10$^3$)',
-                'Average Speed\n\n(BLU/S)',
-                'Path Straightness\n\n'+r'(R$^2$ Value)',
-                'Geotactic Index\n\n(index)',
-                ]
-
-plotYLabels = ['number',
-               'seconds',
-               r'BLU (x10$^3$)',
-               'BLU/S',
-               r'R$^2$ Value',
-               'Geotactic Index',
-                ]
-
-
-tSeriesPlotIndex = 1
-total5MinPlotIndex = 0
-
-nPlotStacks = 2
-figRatio = [3,1]
-figWidth = 7
-figHeight = 7/1.618
-tightLayout = False
-wSpace = 0.4
-hSpace = 0.15
-marginLeft = 0.05
-marginRight = 0.99
-marginTop = 0.97
-marginBottom = 0.082
-
-legendHorPos = 0.32
-legendVerPos = 1.058
-legendAxesRowSet = total5MinPlotIndex
-legendAxesRowGet = tSeriesPlotIndex
-legendAxesColSet = 4
-legendAxesColGet = 4
-
-nParamsToPlot = nParams-1
-
-dataToPlot = [genotypeNTracks,
-              genotypeLenTrack,
-              genotypeDis,
-              genotypeAvSpeed,
-              genotypeStraight,
-              genotypeGeoTacInd]
-
-ax00 = {'yticks': np.arange(5) }
-ax10 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
-nSecs = 7
-ax01 = {'yticks': np.arange(0, trackFPS*nSecs, 2*trackFPS) , 'yticklabels':  np.arange(0,nSecs,2), 'ylim':(0,trackFPS*nSecs)}
-nSecs = 13
-ax11 = {'yticks': np.arange(0, trackFPS*nSecs, 2*trackFPS),'yticklabels':  np.arange(0,nSecs,2), 'ylim':(0,trackFPS*nSecs) }
-ax02 = {'yticks': np.arange(0,5000,1000), 'yticklabels': np.arange(5) }
-ax12 = {'yticks': np.arange(0,21000,5000), 'yticklabels': np.arange(0,21,5), 'ylim':(0,21000) }
-ax03 = {'yticks': np.arange(0,10,2)}
-ax13 = {'yticks': np.arange(0,10,2)}
-ax04 = {'ylim': (0, 1.1), 'yticks': [0, 0.5, 1]}
-ax14 = {'ylim': (0, 1.5), 'yticks': [0, 0.5, 1]}
-ax05 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
-ax15 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
-axP = [
-        [ax10, ax11, ax12, ax13, ax14, ax15],
-        [ax00, ax01, ax02, ax03, ax04, ax05]
-      ]
-
-
-fontSize = 8
-plt.rc('font', family='serif', serif='Arial', size=fontSize)
-plt.rc('ytick', labelsize=fontSize)
-plt.rc('axes', labelsize=fontSize)
-plt.rc('xtick', labelsize=fontSize)
-
-showMeans = False
-showMedians = True
-showExtrema = False
-medianColor = 'Orange'
-vPlotLineShow = 'cmedians'
-
-
-bwMethod = 'silverman'
-boxLineWidth = 0.5
-boxprops = dict(linestyle='--', linewidth=boxLineWidth)
-whiskerprops = dict(linestyle='--', linewidth=boxLineWidth)
-capprops = dict(linestyle='--', linewidth=boxLineWidth)
-medianprops = dict(linestyle = None, linewidth=0)
-boxPro = dict(boxprops=boxprops, whiskerprops=whiskerprops, capprops=capprops)
-
-
-ptime = present_time()
-figDir = '/media/aman/data/thesis/ClimbingPaper/Figures/raw'
-csFigNamePng = ('%s/png/%s_CS.png'%(figDir, ptime))
-combinedFigNamePng = ('%s/png/%s_%s.png'%(figDir, ptime, '_'.join(dirs)))
-csFigNameSvg = ('%s/%s_CS.svg'%(figDir, ptime))
-combinedFigNameSvg = ('%s/%s_%s.svg'%(figDir, ptime, '_'.join(dirs)))
-gtiFigNamePng = ('%s/png/%s_%s_GTI.png'%(figDir, ptime, '_'.join(dirs)))
-gtiFigNameSvg = ('%s/%s_%s_GTI.svg'%(figDir, ptime, '_'.join(dirs)))
-dpi = 300
-
-sMarkers  = ['o' for x in sMarkers]
-
-if 'CS' in dirs:
-    csIndex = dirs.index('CS')
-    csGT = allGenotypePerUT_Data[csIndex]
-    data = np.nanmean(csGT[:], axis=0)
-    sem = stats.sem(csGT[:], axis=0)
-    vPlotPosCS = [csIndex+1]
-    ax10 = {'yticks': np.arange(0,21,5), 'ylim':(0,21)}
-    axP[0][0]=ax10
-    fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
-    fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
-    for i in xrange(nParamsToPlot):
-            ax[tSeriesPlotIndex, i].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], color=colors[0], fmt='-'+markers[0])
-    bPlots = []
-    vPlots = []
-    for i in xrange(nParamsToPlot):
-        plotData = dataToPlot[i][csIndex]
-        vp = ax[total5MinPlotIndex, i].violinplot(plotData, vPlotPosCS, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
-        bp = ax[total5MinPlotIndex, i].boxplot(plotData, sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
-        plotScatter(ax[total5MinPlotIndex, i], plotData, scatterX = vPlotPosCS[0], scatterMarker = sMarkers[csIndex], scatterColor = genotypeMarker[csIndex], zOrder=2)
-        vPlots.append(vp)
-        bPlots.append(bp)
-    for vplot in vPlots:
-        vplot[vPlotLineShow].set_color(medianColor)
-        for patch, color in zip(vplot['bodies'], colors):
-            
-            patch.set_color(color)
-            patch.set_edgecolor(None)
-            patch.set_alpha(vAlphaCS)
-    
-#    for i in xrange(len(axP)):
-#        for j in xrange(nParamsToPlot):
-#            plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
-#            plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
-#            plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
-#            plt.setp(ax[i,j], ylabel = plotYLabels[j])
-#            plt.setp(ax[i,j], **axP[i][j])
-#            if i==tSeriesPlotIndex:
-#                plt.setp(ax[i,j], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
-    plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,2], xticks = [0], xticklabels = [])
-    plt.savefig(csFigNamePng, dpi=dpi, format='png')
-    plt.savefig(csFigNameSvg, format='svg')
-    # plt.show()
-    # fig.set_size_inches(7,7/1.618)
-
-
-
-fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
-fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
-for c, gt in enumerate(allGenotypePerUT_Data):
-    data = np.nanmean(gt[:], axis=0)
-    sem = stats.sem(gt[:], axis=0)
-    tPlots = []
-    for i in xrange(0, nParamsToPlot):
-        tp = ax[tSeriesPlotIndex,i].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], color=colors[c], fmt='-'+markers[c], label=genotypes[c])
-        tPlots.append(tp)
-legendHandles, legendLabels = ax[legendAxesRowGet, legendAxesColGet].get_legend_handles_labels()
-ax[legendAxesRowSet, legendAxesColSet].legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(legendHorPos, legendVerPos), loc=2, shadow=True, edgecolor=(0,0,0), fontsize='x-small', ncol=1).draggable()
-bPlots = []
-vPlots = []
-for i in xrange(0, nParamsToPlot):
-    plotData = dataToPlot[i]
-    vp = ax[total5MinPlotIndex, i].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
-    bp = ax[total5MinPlotIndex, i].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
-    for s,scatterPlotData in enumerate(plotData):
-        plotScatter(ax[total5MinPlotIndex, i], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
-    vPlots.append(vp)
-    bPlots.append(bp)
-for vplot in vPlots:
-    vplot[vPlotLineShow].set_color(medianColor)
-    for patch, color in zip(vplot['bodies'], colors):
-        patch.set_color(color)
-        patch.set_edgecolor(None)
-        patch.set_alpha(vAlpha)
-
-for i in xrange(0, len(axP)):
-    for j in xrange(0, nParamsToPlot):
-        plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
-        plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
-        plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
-        plt.setp(ax[i,j], ylabel = plotYLabels[j])
-        plt.setp(ax[i,j], **axP[i][j])
-        if i==tSeriesPlotIndex:
-            plt.setp(ax[i,j], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
-plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
-plt.savefig(combinedFigNamePng, dpi=dpi, format='png')
-plt.savefig(combinedFigNameSvg, format='svg')
-# plt.show()
-
-
-
-gtinParamsToPlot = 1
-gtiFigWidth = 2.2
-gtiFigHeight = figHeight+0.5
-
-gtiMarginLeft = 0.2
-gtiMarginRight = marginRight
-gtiMarginTop = marginTop-0.07
-gtiMarginBottom  = marginBottom + 0.01
-gtilegendVerPos = legendVerPos+0.1
-ax0 = {'yticks': np.arange(-1, 2), 'ylim':(1.2, -1.2) }
-# ax1 = {'yticks': np.arange(-1, 2), 'ylim':(1.2, -1.2) }
-# ax1 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
-axP1 = [ax0, ax0]
-      #   [ax10, ax11, ax12, ax13, ax14, ax15],
-      #   [ax00, ax01, ax02, ax03, ax04, ax05]
-      # ]
-
-
-#-----GeoTacticIndex Plot-------
-
-fig, ax = plt.subplots(nPlotStacks, gtinParamsToPlot, figsize=(1.8, gtiFigHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
-fig.subplots_adjust(left=gtiMarginLeft, bottom=gtiMarginBottom, right=gtiMarginRight, top=gtiMarginTop, wspace = wSpace, hspace = hSpace)
-for c, gt in enumerate(allGenotypePerUT_Data):
-    data = np.nanmean(gt[:], axis=0)
-    sem = stats.sem(gt[:], axis=0)
-    tPlots = []
-    i=-1
-    tp = ax[tSeriesPlotIndex].errorbar(np.arange(len(data[:,i])), data[:,i], yerr=sem[:,i], color=colors[c], fmt='-'+markers[c], label=genotypes[c])
-legendHandles, legendLabels = ax[tSeriesPlotIndex].get_legend_handles_labels()
-ax[total5MinPlotIndex].legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(legendHorPos, gtilegendVerPos),\
-  loc=2, shadow=True, edgecolor=(0,0,0), fontsize='x-small', ncol=2).draggable()
-plotData = dataToPlot[i]
-vp = ax[total5MinPlotIndex].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
-bp = ax[total5MinPlotIndex].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
-for s,scatterPlotData in enumerate(plotData):
-    plotScatter(ax[total5MinPlotIndex], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
-vp[vPlotLineShow].set_color(medianColor)
-for patch, color in zip(vp['bodies'], colors):
-    patch.set_color(color)
-    patch.set_edgecolor(None)
-    patch.set_alpha(vAlpha)
-
-for i in xrange(0, len(axP1)):
-        plt.setp([ax[i].spines[x].set_visible(False) for x in ['top','right']])
-        plt.setp(ax[i].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
-        plt.setp(ax[i].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
-        plt.setp(ax[i], ylabel = plotYLabels[-1])
-        plt.setp(ax[i], **axP1[i])
-        if i==tSeriesPlotIndex:
-            plt.setp(ax[i], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
-plt.setp(ax[total5MinPlotIndex], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
-# plt.setp([axs for axs in ax[tSeriesPlotIndex]], xticks = [0,1,2,3,4], xticklabels = [])
-plt.savefig(gtiFigNamePng, dpi=dpi, format='png')
-plt.savefig(gtiFigNameSvg, format='svg')
-# plt.show()
-
-
-
-nParams
-sheetNames = ['NumTracks','TrackDuration','TotalDistance',\
-              'AvSpeed','GeotacticIndex', 'Straightness']
-
-columnHeader = 'TimePoint'
-skipheaderCells = 2
-
-("%s%s_climbing5MinutesStats%s.csv"%(saveDir, present_time(), saveFiles))
-
-#---- Save sheet for Per minute data------------
-paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
-sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
-for g, gt in enumerate(allGenotypePerUT_Data):
-    for f, fly in enumerate(gt):
-        for timepoint in xrange(fly.shape[0]):
-            for parameter in xrange(fly.shape[1]):
-                col = g+(timepoint*(len(allGenotypePerUT_Data)+xlGapColumns))
-                if f==0:
-                    if g==0:
-                        timepointHeader =  '%s: %d minute'%(columnHeader, timepoint+1)
-                        sheets[parameter].write(f,col+len(allGenotypePerUT_Data)/2,timepointHeader)
-                    sheets[parameter].write(f+1, col, dirs[g])
-                row = f+skipheaderCells
-                sheets[parameter].write(row,col, fly[timepoint, parameter])
-#paramBook.save(saveDir + "climbingPerMinuteParameters_genotypesTogether"+saveFiles+".xls")
-xlName = "climbingPerMinuteParameters_genotypesTogether"
-paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
-
-
-paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
-sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
-for g, gt in enumerate(allGenotypePerUT_Data):
-    for f, fly in enumerate(gt):
-        for timepoint in xrange(fly.shape[0]):
-            for parameter in xrange(fly.shape[1]):
-                col = timepoint+(g*(fly.shape[0]+xlGapColumns))
-                if f==0:
-                    timepointHeader =  '%d minute'%(timepoint+1)
-                    sheets[parameter].write(f+1,col,timepointHeader)
-                    if timepoint==0:
-                        sheets[parameter].write(f, col+len(allGenotypePerUT_Data)/2, dirs[g])
-                row = f+skipheaderCells
-                sheets[parameter].write(row,col, fly[timepoint, parameter])
-    
-# paramBook.save(saveDir + "climbingPerMinuteParameters_timepointsTogether"+saveFiles+".xls")
-xlName = "climbingPerMinuteParameters_timepointsTogether"
-paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
-
-#---- Save sheet for 5minutes data------------
-genotypeParams = [genotypeNTracks,
-                  genotypeLenTrack,
-                  genotypeDis,
-                  genotypeAvSpeed,
-                  genotypeGeoTacInd,
-                  genotypeStraight]
-paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
-sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
-
-for s in xrange(len(sheets)):
-    sheet = sheets[s]
-    for g in xrange(len(genotypeParams[s])):
-        for row in xrange(len(genotypeParams[s][g])):
-            if row==0:
-                sheet.write(row,g,dirs[g])
-            sheet.write(row+skipheaderCells,g,genotypeParams[s][g][row])
-# paramBook.save(saveDir + "climbingParameters5Minutes_genotypesTogether"+saveFiles+".xls")
-xlName = "climbingParameters5Minutes_genotypesTogether"
-paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
-
-
-
 
