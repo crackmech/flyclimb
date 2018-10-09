@@ -61,6 +61,16 @@ def getFiles(dirname, extList):
         filesList.extend(glob.glob(os.path.join(dirname, ext)))
     return natural_sort(filesList)
 
+def readImStack(flist):
+    '''
+    returns a numpy array of all the images with extension 'imExt' in folder "imFolder"
+    '''
+    img = cv2.imread(flist[0], cv2.IMREAD_GRAYSCALE)
+    imStack = np.zeros((len(flist), img.shape[0], img.shape[1]), dtype=np.uint8)
+    for idx, f in enumerate(flist):
+        imStack[idx] = cv2.imread(f, cv2.IMREAD_GRAYSCALE)
+    return imStack
+
 def imRead(x):
     return cv2.imread(x, cv2.IMREAD_GRAYSCALE)
 
@@ -109,7 +119,7 @@ def getImContours(args):
     contour = []
     blur = cv2.GaussianBlur(im,(params['blurKernel'], params['blurKernel']),0)
     ret,th = cv2.threshold(blur, params['threshLow'], params['threshHigh'],cv2.THRESH_BINARY)
-    im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     #print len(contours)
     try:
         contours = sorted(contours, key = cv2.contourArea)[-10:]
@@ -131,7 +141,7 @@ def getImContours(args):
     
 def getFlycontour(dirname, imExts,
                   contourParams, header,
-                  workers):
+                  pool):
     '''
     tracks the fly using cv2.SimpleBlobDetector method and saves the tracked flies in folders
     '''
@@ -139,9 +149,9 @@ def getFlycontour(dirname, imExts,
     flist = getFiles(dirname, imExts)
     nImsToProcess = len(flist)
     print 'processing %i frames in\n==> %s'%(nImsToProcess, dirname)
-    pool = mp.Pool(processes=workers)
     startTime = time.time()
-    imgStack = np.array(pool.map(imRead, flist), dtype=np.uint8)
+    #imgStack = np.array(pool.map(imRead, flist), dtype=np.uint8)
+    imgStack = readImStack(flist)
     bgIm = getBgIm(imgStack)
     subIms = getBgSubIms(imgStack, bgIm)
     poolArgList = itertools.izip(flist, subIms, itertools.repeat(params), np.arange(len(flist)))
@@ -166,8 +176,8 @@ def getFlycontour(dirname, imExts,
 
 
 
-baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
-#baseDir = '/media/pointgrey/data/flywalk/climbingData/uploaded/'
+#baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
+baseDir = '/media/pointgrey/data/flywalk/climbingData/uploaded/'
 #baseDir = getFolder(baseDir)
 
 try:
@@ -184,6 +194,7 @@ statsfName = 'contoursStats_threshBinary'
 statsFileHeader = ['frameDetails','x-coord','y-coord','minorAxis (px)','majorAxis (px)','angle','area (px)']
 
 nThreads = 4
+pool = mp.Pool(processes=nThreads)
 
 rawdirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
 for idx, rawDir in enumerate(rawdirs):
@@ -191,7 +202,7 @@ for idx, rawDir in enumerate(rawdirs):
                         if os.path.isdir(os.path.join(rawDir, imDataFolder, name)) ])
     for _,imFolder in enumerate(dirs):
         if 'tracked' not in imFolder:
-            flyContours = getFlycontour(imFolder, imExtensions, params, statsFileHeader, nThreads)
+            flyContours = getFlycontour(imFolder, imExtensions, params, statsFileHeader, pool)
             statsFile = imFolder.rstrip('/')+'_'+statsfName+'_'+rawDir+'.csv'
             with open(statsFile, "w") as f:
                 writer = csv.writer(f)

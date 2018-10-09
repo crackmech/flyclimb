@@ -57,11 +57,12 @@ def readImStack(imfolder, imExt):
     '''
     returns a numpy array of all the images with extension 'imExt' in folder "imFolder"
     '''
-    flist = natural_sort(glob.glob(os.path.join(imfolder, '*'+imExt)))
-    imStack = []
+    flist = natural_sort(glob.glob(os.path.join(imfolder, imExt)))
+    img = cv2.imread(flist[0], cv2.IMREAD_GRAYSCALE)
+    imStack = np.zeros((len(flist), img.shape[0], img.shape[1]), dtype=np.uint8)
     for idx, f in enumerate(flist):
-        imStack.append(cv2.imread(f))
-    return np.array(imStack)
+        imStack[idx] = cv2.imread(f, cv2.IMREAD_GRAYSCALE)
+    return imStack
 
 def displayImstack(imStack, delay, winName):
     '''
@@ -88,34 +89,43 @@ def readcontStatsFile(fname):
 
 
 
-dirname = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/tmp_20171201_195931_CS_20171128_0245_11-Climbing_male (3rd copy)/imageData/'
-csvfname = '20171201_195953_contoursStats_tmp_20171201_195931_CS_20171128_0245_11-Climbing_male (3rd copy).csv'
-csvfname = '20171201_200012_contoursStats_tmp_20171201_195931_CS_20171128_0245_11-Climbing_male (3rd copy).csv'
+dirname = '/media/pointgrey/data/flywalk/climbingData/uploaded/CS/20171130_013703_CS_20171125_1630_1-Climbing_female/imageData/'
+csvfname = '20171130_013705_contoursStats_threshBinary_20171130_013703_CS_20171125_1630_1-Climbing_female.csv'
+#csvfname = '20171130_013705_contoursStats_20171130_013703_CS_20171125_1630_1-Climbing_female.csv'
 fileName = os.path.join(dirname, csvfname)
 cntStats = readcontStatsFile(fileName)[1:]
 
 imFolder = "_".join(csvfname.split('_')[:2])
 imfolderPath = os.path.join(dirname, imFolder)
 
-imgExt = '.png'
+imgExt = '*.png'
 imgStack =  readImStack(imfolderPath, imgExt)
-
+#
 #displayImstack(imgStack, 4, 'raw')
 
-cntrImStack = np.array([cv2.ellipse(imgStack[i].copy(),
-                                    ((float(cntStats[i][1]), float(cntStats[i][2])),
-                                     (float(cntStats[i][3]),float(cntStats[i][4])),
-                                      float(cntStats[i][5])),
-                                     (0,150,255),2) for i in xrange(len(imgStack))])
-#displayImstack(cntrImStack, 4, 'cnt')
+
+cntrImStack = []
+for i in xrange(len(imgStack)):
+    im = imgStack[i].copy()
+    cv2.ellipse(im,((float(cntStats[i][1]), float(cntStats[i][2])),
+                    (float(cntStats[i][3]), float(cntStats[i][4])),
+                    float(cntStats[i][5])), (200,150,255),2)
+    cntrImStack.append(im)
+
+cntrImStack = np.array(cntrImStack, dtype=np.uint8)
 
 displayImstack(np.hstack((imgStack,cntrImStack)), 4, 'cnt')
 
 
 
-
-
-
+#cntrImStack = np.array([cv2.ellipse(imgStack[i].copy(),
+#                                    ((float(cntStats[i][1]), float(cntStats[i][2])),
+#                                     (float(cntStats[i][3]),float(cntStats[i][4])),
+#                                      float(cntStats[i][5])),
+#                                     (210,150,255),2) for i in xrange(len(imgStack))])
+#displayImstack(cntrImStack, 4, 'cnt')
+#
+#displayImstack(np.hstack((imgStack,cntrImStack)), 4, 'cnt')
 
 
 

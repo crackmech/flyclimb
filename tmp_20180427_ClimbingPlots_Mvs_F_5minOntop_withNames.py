@@ -20,6 +20,24 @@ Created on Tue Mar  6 14:25:20 2018
 
 @author: aman
 """
+#----------- Set Values for setting X-Y limits on the plots -------
+maxTimeThresh   = 300 # time for calculation of data from tracks under this much seconds
+nTrackPerMin    = 6
+nSecsDurPerMin  = 6
+nSecsDurTotal   = 8
+disPerMin       = 6000
+avSpeedVal      = 7
+
+
+
+unitTime = 60
+nUnitTimes = maxTimeThresh/unitTime
+figWidth = 1.4*nUnitTimes
+figHeight = figWidth/1.618
+fontSize = (8/7.0)*figWidth
+
+
+
 imgDatafolder = 'imageData'
 trackImExtension = '.jpeg'
 csvExt = 'trackData*.csv'
@@ -41,14 +59,47 @@ AngBinMin = 0
 AngBinMax = 180
 AngBinStep = 1
 
+chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
+minTrackLen = blu*10
 
-# import time
-# import copy
-# import sys
-# from math import atan2, degrees
-# from thread import start_new_thread as startNT
 
-# import cv2
+disMinThres = blu/20
+disMaxThres = blu
+consecWin = 7
+trackLenThresh = 10*blu
+
+
+tSeriesPlotIndex = 1
+total5MinPlotIndex = 0
+
+nPlotStacks = 2
+figRatio = [3,1]
+tightLayout = False
+wSpace = 0.4
+hSpace = 0.15
+marginLeft = 0.05
+marginRight = 0.99
+marginTop = 0.97
+marginBottom = 0.082
+
+legendHorPos = 0.32
+legendVerPos = 1.058
+legendAxesRowSet = total5MinPlotIndex
+legendAxesRowGet = tSeriesPlotIndex
+legendAxesColSet = 4
+legendAxesColGet = 4
+
+ntSeriesXTicks = 5
+nDisYTicks = 10
+tSeriesXtickStep = nUnitTimes/ntSeriesXTicks
+disTickScale = 1000
+distickStep = 1000
+disticks = disPerMin/distickStep
+disTotalTicks = (disticks*nUnitTimes)+1
+disTotal = disPerMin*nUnitTimes
+disTotalStep = disTotal/nDisYTicks
+disTotalTicksStep = disTotalStep/disTickScale
+
 import os
 import glob
 import numpy as np
@@ -60,25 +111,28 @@ import tkFileDialog as tkd
 import matplotlib.pyplot as plt
 from scipy import stats
 import xlwt
-import dip
 import matplotlib
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.markers import MarkerStyle
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 font = {'family' : 'normal',
         'weight' : 'normal',
-        'size'   : 18}
+        'size'   : (8/7.0)*figWidth}
 
 plt.rc('font', **font)          # controls default text sizes
 #plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
-plt.rc('axes', labelsize=22)    # fontsize of the x and y labels
+plt.rc('axes', labelsize=figWidth*3)    # fontsize of the x and y labels
 # plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 # plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 # plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 # plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure titlecol = 1
 col=1
 plt.rcParams['axes.facecolor'] = (col,col,col)
+
+plt.rc('font', family='serif', serif='Arial', size=fontSize)
+plt.rc('ytick', labelsize=fontSize)
+plt.rc('axes', labelsize=fontSize)
+plt.rc('xtick', labelsize=fontSize)
+
 
 angleBins = np.arange(AngBinMin, AngBinMax, AngBinStep)
 
@@ -296,16 +350,6 @@ def getMedian(dataArray, i):
         med[j] = getHistMode(dataArray[:,j], bins)[0]
     return med
 
-maxTimeThresh = 300 # time for calculation of data from tracks under this much seconds
-chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
-minTrackLen = blu*10
-unitTime = 60
-
-
-disMinThres = blu/20
-disMaxThres = blu
-consecWin = 7
-trackLenThresh = 10*blu
 
 
 speedBinMin = disMinThres
@@ -315,10 +359,10 @@ speedBins = np.arange(speedBinMin, speedBinMax, speedBinStep)
 
 #baseDir = '/media/aman/data/flyWalk_data/climbingData/controls'
 baseDir = '/media/pointgrey/data/flywalk/'
-baseDir = '/media/pointgrey/data/flywalk/climbingData/plots/csvDir_20180901/fig3/'
+#baseDir = '/media/pointgrey/data/flywalk/climbingData/plots/csvDir_20180901/fig3/'
 colorsRandom = [random_color() for c in xrange(1000)]
 
-#baseDir = getFolder(baseDir)
+baseDir = getFolder(baseDir)
 dirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
 
 if  'W1118' in dirs:
@@ -445,7 +489,7 @@ for i, gt in enumerate(dirs):
         colors.append((86/div,180/div,233/div,alfa))
         markers.append('s')
     elif gt in ('W1118xLrrk-ex1', 'w1118xLrrk-ex1'):
-        genotypes.append(r'W$^1$$^1$$^1$$^8$/Lrrk$^e$$^x$$^1$')
+        genotypes.append(r'Lrrk$^e$$^x$$^1$/W$^1$$^1$$^1$$^8$')
         colors.append((180/div,109/div,0/div,alfa))
         markers.append('v')
     elif gt in ('PARK25xW1118', 'Park25xw1118', 'Park25xW1118'):
@@ -611,11 +655,9 @@ def getFlySpeedDisData(flyTrackData, timeThresh, trackLenThresh, unitTime, imFol
         '''
     return np.array(flyAllData), np.array(flyAllInsSpeeds), flyTrackData[0][-1][0].split(imFolder)[0], flyDisPerUnitTime
 
-maxTimeThresh = 300 # time for calculation of data from tracks under this much seconds
+#maxTimeThresh = 300 # time for calculation of data from tracks under this much seconds
 chukFrames = 20 # number of frames to be chucked from start and end of the track to initiate data calculation
 minTrackLen = blu*3
-unitTime = 60
-nUnitTimes = maxTimeThresh/unitTime
 nParams = 6
 unitDataIndex = -1
 xlGapColumns = 2
@@ -775,47 +817,6 @@ for _,genotype in enumerate(allGenotypeMovementData):
     allGenotypePerUT_Data.append(genotypePerUT_Data)
     # allGenotypePerUT_Data.append(np.array(genotypePerUT_Data))
 
-#------- CHECK for NORMALITY --------
-params = ['nTracks', 'trackDuration', 'Distance',\
-          'Speed', 'PathStraightness', 'GeotacticIndex']
-genotypeParams = [genotypeNTracks,
-                  genotypeLenTrack,
-                  genotypeDis,
-                  genotypeAvSpeed,
-                  genotypeStraight,
-                  genotypeGeoTacInd]
-# f = open(saveDir + "climbing5MinutesStats"+saveFiles+".csv", 'wa')
-f = open(("%s%s_climbing5MinutesStats%s.csv"%(saveDir, present_time(), saveFiles)), 'wa')
-#--Check normality for 5 minutes data----
-print '\n\n\n----Check normality for 5 minutes data----'
-for p, par in enumerate(genotypeParams):
-    print '------', params[p],'------'
-    f.write('\n\n------Normality check for %s------\n'%params[p])
-    for g, gt in enumerate(par):
-        print stats.normaltest(gt)
-        f.write('%s: %s\n'%(genotypes[g],str(stats.normaltest(gt))))
-f.close()    
-#--Check normality for Per minute data----
-
-f = open(("%s%s_climbingPerMinuteStats%s.csv"%(saveDir, present_time(), saveFiles)), 'wa')
-fn = open(("%s%s_climbingPerMinuteNormalityStats%s.csv"%(saveDir, present_time(), saveFiles)), 'wa')
-f.write('\nKruskal-Wallis test for: ')
-fn.write('\nD’Agostino-Pearson’s Normality test for: \n')
-print '\n\n\n---Checking normality for Per minute data----'
-for t in xrange(nUnitTimes):
-    for p, par in enumerate(params):
-        gtData = []
-        for i in xrange(len(dirs)):
-            parData = [allGenotypePerUT_Data[i][x][t,p] for x in xrange(len(allGenotypePerUT_Data[i]))]
-            gtData.append(parData)
-            print 'Normality value for: %s of %s (%d minute)'%(params[p], dirs[i], (t+1))
-            fn.write('Normality value for: %s of %s (%d minute): %s\n'%(params[p], dirs[i], (t+1), str(stats.normaltest(parData))))
-            print ('normal: %f, ShapiroWilk: %f'%(stats.normaltest(parData)[1], stats.shapiro(parData)[1]))
-        print '\n---KruskalWallis:',stats.kruskal(*gtData)
-        print '---OneWayANOVA:',stats.f_oneway(*gtData)
-        f.write('\n:%s (%d minute): %s'%(params[p], t+1, str(stats.kruskal(*gtData))))
-f.close()
-
 
 trackFPS = 35
 bAlpha = 0.5
@@ -841,28 +842,6 @@ plotYLabels = ['number',
                 ]
 
 
-tSeriesPlotIndex = 1
-total5MinPlotIndex = 0
-
-nPlotStacks = 2
-figRatio = [3,1]
-figWidth = 7
-figHeight = 7/1.618
-tightLayout = False
-wSpace = 0.4
-hSpace = 0.15
-marginLeft = 0.05
-marginRight = 0.99
-marginTop = 0.97
-marginBottom = 0.082
-
-legendHorPos = 0.32
-legendVerPos = 1.058
-legendAxesRowSet = total5MinPlotIndex
-legendAxesRowGet = tSeriesPlotIndex
-legendAxesColSet = 4
-legendAxesColGet = 4
-
 nParamsToPlot = nParams-1
 
 dataToPlot = [genotypeNTracks,
@@ -872,16 +851,16 @@ dataToPlot = [genotypeNTracks,
               genotypeStraight,
               genotypeGeoTacInd]
 
-ax00 = {'yticks': np.arange(5) }
-ax10 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
-nSecs = 7
-ax01 = {'yticks': np.arange(0, trackFPS*nSecs, 2*trackFPS) , 'yticklabels':  np.arange(0,nSecs,2), 'ylim':(0,trackFPS*nSecs)}
-nSecs = 13
-ax11 = {'yticks': np.arange(0, trackFPS*nSecs, 2*trackFPS),'yticklabels':  np.arange(0,nSecs,2), 'ylim':(0,trackFPS*nSecs) }
-ax02 = {'yticks': np.arange(0,5000,1000), 'yticklabels': np.arange(5) }
-ax12 = {'yticks': np.arange(0,21000,5000), 'yticklabels': np.arange(0,21,5), 'ylim':(0,21000) }
-ax03 = {'yticks': np.arange(0,10,2)}
-ax13 = {'yticks': np.arange(0,10,2)}
+
+ax00 = {'yticks': np.arange(nTrackPerMin+1) }
+#ax10 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
+ax10 = {'yticks': np.arange(0,nTrackPerMin*nUnitTimes,nUnitTimes), 'ylim':(0,nTrackPerMin*nUnitTimes+1)}
+ax01 = {'yticks': np.arange(0, trackFPS*nSecsDurPerMin, 2*trackFPS) , 'yticklabels':  np.arange(0,nSecsDurPerMin,2), 'ylim':(0,trackFPS*nSecsDurPerMin)}
+ax11 = {'yticks': np.arange(0, trackFPS*nSecsDurTotal, 2*trackFPS),'yticklabels':  np.arange(0,nSecsDurTotal,2), 'ylim':(0,trackFPS*nSecsDurTotal) }
+ax02 = {'yticks': np.arange(0,disPerMin,distickStep), 'yticklabels': np.arange(disticks) }
+ax12 = {'yticks': np.arange(0,disTotal,disTotalStep), 'yticklabels': np.arange(0,disTotalTicks,disTotalTicksStep), 'ylim':(0,disTotal) }
+ax03 = {'yticks': np.arange(0,avSpeedVal,2)}
+ax13 = {'yticks': np.arange(0,avSpeedVal,2)}
 ax04 = {'ylim': (0, 1.1), 'yticks': [0, 0.5, 1]}
 ax14 = {'ylim': (0, 1.5), 'yticks': [0, 0.5, 1]}
 ax05 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
@@ -891,12 +870,6 @@ axP = [
         [ax00, ax01, ax02, ax03, ax04, ax05]
       ]
 
-
-fontSize = 8
-plt.rc('font', family='serif', serif='Arial', size=fontSize)
-plt.rc('ytick', labelsize=fontSize)
-plt.rc('axes', labelsize=fontSize)
-plt.rc('xtick', labelsize=fontSize)
 
 showMeans = False
 showMedians = True
@@ -963,16 +936,16 @@ if 'CS' in dirs:
             plt.setp(ax[i,j], ylabel = plotYLabels[j])
             plt.setp(ax[i,j], **axP[i][j])
             if i==tSeriesPlotIndex:
-                plt.setp(ax[i,j], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
+                plt.setp(ax[i,j], xticks = np.arange(0,nUnitTimes), xticklabels = np.arange(1,nUnitTimes+1), xlabel = 'minutes')
     plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,2], xticks = [0], xticklabels = [])
     plt.savefig(csFigNamePng, dpi=dpi, format='png')
     plt.savefig(csFigNameSvg, format='svg')
     # plt.show()
-    # fig.set_size_inches(7,7/1.618)
 
 
-ax10 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
-axP[0][0]=ax10
+#ax10 = {'yticks': np.arange(0,5*nUnitTimes,5), 'ylim':(0,5*nUnitTimes+1)}
+#ax10 = {'yticks': np.arange(0,nTrackPerMin*nUnitTimes,nUnitTimes), 'ylim':(0,nTrackPerMin*nUnitTimes+1)}
+#axP[0][0]=ax10
 
 fig, ax = plt.subplots(nPlotStacks,nParamsToPlot, figsize=(figWidth, figHeight), tight_layout = tightLayout, gridspec_kw = {'height_ratios':figRatio})
 fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
@@ -1010,7 +983,7 @@ for i in xrange(0, len(axP)):
         plt.setp(ax[i,j], ylabel = plotYLabels[j])
         plt.setp(ax[i,j], **axP[i][j])
         if i==tSeriesPlotIndex:
-            plt.setp(ax[i,j], xticks = [0,1,2,3,4], xticklabels = [1,2,3,4,5], xlabel = 'minutes')
+                plt.setp(ax[i,j], xticks = np.arange(0,nUnitTimes, tSeriesXtickStep), xticklabels = np.arange(1,nUnitTimes+1, tSeriesXtickStep), xlabel = 'minutes')
 plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
 plt.savefig(combinedFigNamePng, dpi=dpi, format='png')
 plt.savefig(combinedFigNameSvg, format='svg')
@@ -1028,12 +1001,7 @@ gtiMarginTop = marginTop-0.07
 gtiMarginBottom  = marginBottom + 0.01
 gtilegendVerPos = legendVerPos+0.1
 ax0 = {'yticks': np.arange(-1, 2), 'ylim':(1.2, -1.2) }
-# ax1 = {'yticks': np.arange(-1, 2), 'ylim':(1.2, -1.2) }
-# ax1 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
 axP1 = [ax0, ax0]
-      #   [ax10, ax11, ax12, ax13, ax14, ax15],
-      #   [ax00, ax01, ax02, ax03, ax04, ax05]
-      # ]
 
 
 #-----GeoTacticIndex Plot-------
@@ -1078,7 +1046,7 @@ plt.savefig(gtiFigNameSvg, format='svg')
 
 nParams
 sheetNames = ['NumTracks','TrackDuration','TotalDistance',\
-              'AvSpeed','GeotacticIndex', 'Straightness', 'flyDetails']
+              'AvSpeed','Straightness', 'GeotacticIndex', 'flyDetails']
 
 columnHeader = 'TimePoint'
 skipheaderCells = 2
@@ -1129,8 +1097,8 @@ genotypeParams = [genotypeNTracks,
                   genotypeLenTrack,
                   genotypeDis,
                   genotypeAvSpeed,
-                  genotypeGeoTacInd,
                   genotypeStraight,
+                  genotypeGeoTacInd,
                   genotypeName]
 paramBook = xlwt.Workbook(encoding='utf-8', style_compression = 0)
 sheets = [paramBook.add_sheet(x, cell_overwrite_ok = True) for x in sheetNames]
@@ -1147,5 +1115,46 @@ xlName = "climbingParameters5Minutes_genotypesTogether"
 paramBook.save("%s%s_%s%s.xls"%(saveDir, present_time(), xlName, saveFiles))
 
 
+
+#------- CHECK for NORMALITY --------
+params = ['nTracks', 'trackDuration', 'Distance',\
+          'Speed', 'PathStraightness', 'GeotacticIndex']
+genotypeParams = [genotypeNTracks,
+                  genotypeLenTrack,
+                  genotypeDis,
+                  genotypeAvSpeed,
+                  genotypeStraight,
+                  genotypeGeoTacInd]
+
+f = open(("%s%s_climbing5MinutesStats%s.csv"%(saveDir, present_time(), saveFiles)), 'wa')
+#--Check normality for 5 minutes data----
+print '\n\n\n----Check normality for 5 minutes data----'
+for p, par in enumerate(genotypeParams):
+    print '------', params[p],'------'
+    f.write('\n\n------Normality check for %s------\n'%params[p])
+    for g, gt in enumerate(par):
+        print stats.normaltest(gt)
+        f.write('%s: %s\n'%(genotypes[g],str(stats.normaltest(gt))))
+f.close()    
+#--Check normality for Per minute data----
+
+f = open(("%s%s_climbingPerMinuteStats%s.csv"%(saveDir, present_time(), saveFiles)), 'wa')
+fn = open(("%s%s_climbingPerMinuteNormalityStats%s.csv"%(saveDir, present_time(), saveFiles)), 'wa')
+f.write('\nKruskal-Wallis test for: ')
+fn.write('\nD’Agostino-Pearson’s Normality test for: \n')
+print '\n\n\n---Checking normality for Per minute data----'
+for t in xrange(nUnitTimes):
+    for p, par in enumerate(params):
+        gtData = []
+        for i in xrange(len(dirs)):
+            parData = [allGenotypePerUT_Data[i][x][t,p] for x in xrange(len(allGenotypePerUT_Data[i]))]
+            gtData.append(parData)
+            print 'Normality value for: %s of %s (%d minute)'%(params[p], dirs[i], (t+1))
+            fn.write('Normality value for: %s of %s (%d minute): %s\n'%(params[p], dirs[i], (t+1), str(stats.normaltest(parData))))
+            print ('normal: %f, ShapiroWilk: %f'%(stats.normaltest(parData)[1], stats.shapiro(parData)[1]))
+        print '\n---KruskalWallis:',stats.kruskal(*gtData)
+        print '---OneWayANOVA:',stats.f_oneway(*gtData)
+        f.write('\n:%s (%d minute): %s'%(params[p], t+1, str(stats.kruskal(*gtData))))
+f.close()
 
 
