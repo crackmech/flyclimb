@@ -32,20 +32,6 @@ def getlegTipData(csvFname):
 def getCentroidData(csvFname):
     return readCsv(csvFname)[1:]
 
-def findEuDis(pt1, pt2):
-    return np.sqrt(np.square(pt1[0]-pt2[0])+np.square(pt1[1]-pt2[1]))
-
-def findTotEuDisArr(xyArr):
-    dis = 0
-    for i in xrange(len(xyArr)-1):
-        dis += np.sqrt(np.square(xyArr[i+1][0]-xyArr[i][0])+np.square(xyArr[i+1][1]-xyArr[i][1]))
-    return np.array(dis)
-
-def findEuDisArr(xyArr):
-    dis = []
-    for i in xrange(len(xyArr)):
-        dis.append(np.sqrt(np.square(xyArr[i][0])+np.square(xyArr[i][1])))
-    return dis
 
 def vadd(a,b):
     return (a[0]+b[0],a[1]+b[1])
@@ -66,6 +52,20 @@ def project(a, b):
     print a,b,abdot,blensq,temp,c
     return c
 
+def findEuDis(pt1, pt2):
+    return np.sqrt(np.square(pt1[0]-pt2[0])+np.square(pt1[1]-pt2[1]))
+
+def findTotEuDisArr(xyArr):
+    dis = 0
+    for i in xrange(len(xyArr)-1):
+        dis += np.sqrt(np.square(xyArr[i+1][0]-xyArr[i][0])+np.square(xyArr[i+1][1]-xyArr[i][1]))
+    return np.array(dis)
+
+def findEuDisArr(xyArr):
+    dis = []
+    for i in xrange(len(xyArr)):
+        dis.append(np.sqrt(np.square(xyArr[i][0])+np.square(xyArr[i][1])))
+    return dis
 
 def findDistFromLine(pt, m, c):
     y = (m*pt[0]) + c
@@ -114,15 +114,11 @@ legTipsCsvName = dirName+'20180822_'+o+fileName+'legTipLocs.csv'
 centroidsFile = dirName+'20180822_'+o+fileName+'centroids.csv'
 
 angThresh = 170
-angArm = 11
+angArm = 15
 angleSlidWind = 1
 disThresh = 100 #in pixels
 framesThresh = 20
 colors = [(0,255,0),(255,0,0),(255,255,0),(0,0,255),(0,125,255),(125,211,122)]
-
-rows = getlegTipData(legTipsCsvName)
-valuesOri = np.array(rows[:,1:], dtype=np.float64)
-valuesPlt = valuesOri.copy()
 
 cents1 = getCentroidData(centroidsFile)
 cents = [x for _,x in enumerate(cents1) if x[1]!='noContourDetected']
@@ -130,8 +126,33 @@ frNamesAll = [x[0] for _,x in enumerate(cents) if x[1]!='noContourDetected']
 centroids = np.array(cents)[:,1:].astype(dtype=np.float64)
 
 
+consecAngles = getAngles(centroids[:,:2], angArm, angleSlidWind, 5)
+sliceIdx = np.where(consecAngles>angThresh)[0]+angArm
+coordIdx = [sliceIdx[0]]
+for i,x in enumerate(np.diff(sliceIdx)):
+    if x>1:
+        coordIdx.append(i-1)
+coordIdx.append(sliceIdx[-1])
+distances = []
+for i in xrange(len(coordIdx)-1):
+    distances.append(findTotEuDisArr(centroids[coordIdx[i]:coordIdx[i+1],:2]))
+trackSlices = np.where(np.array(distances)>disThresh)[0]
+frNumbers = []
+for _, x in enumerate(trackSlices):
+    frNumbers.append(coordIdx[x:x+2])
 
-consecAngles = getAngles(centroids[:,:2], angArm, angleSlidWind, 7)
+im = np.zeros((580,1280,3),dtype=np.uint8)
+for i in xrange(len(centroids)):
+    cv2.circle(im, (int(centroids[i,0]), int(centroids[i,1])), 2, (0,255,255), 1)
+for i,x in enumerate(frNumbers):
+    for j in xrange(x[0],x[1]+1):
+        cv2.circle(im, (int(centroids[j,0]), int(centroids[j,1])), 2, colors[i], 1)
+cv2.imshow('123',im)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
+
+
+#consecAngles = getAngles(centroids[:,:2], angArm, angleSlidWind, 5)
 #sliceIdx = np.where(consecAngles<angThresh)[0]+angArm
 #distances = []
 #for i in xrange(len(sliceIdx)-1):
@@ -168,32 +189,6 @@ consecAngles = getAngles(centroids[:,:2], angArm, angleSlidWind, 7)
 
 
 
-sliceIdx = np.where(consecAngles>angThresh)[0]+angArm
-disIdx = [sliceIdx[0]]
-for i,x in enumerate(np.diff(sliceIdx)):
-    if x>1:
-        disIdx.append(i-1)
-disIdx.append(sliceIdx[-1])
-distances = []
-for i in xrange(len(disIdx)-1):
-    distances.append(findTotEuDisArr(centroids[disIdx[i]:disIdx[i+1],:2]))
-trackSlices = np.where(np.array(distances)>disThresh)[0]
-frNumbers = []
-for _, x in enumerate(trackSlices):
-    frNumbers.append(disIdx[x:x+2])
-
-
-im = np.zeros((580,1280,3),dtype=np.uint8)
-
-
-for i in xrange(len(centroids)):
-    cv2.circle(im, (int(centroids[i,0]), int(centroids[i,1])), 2, (0,255,255), 1)
-for i,x in enumerate(frNumbers):
-    for j in xrange(x[0],x[1]+1):
-        cv2.circle(im, (int(centroids[j,0]), int(centroids[j,1])), 2, colors[i], 1)
-cv2.imshow('123',im)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
 
 
 

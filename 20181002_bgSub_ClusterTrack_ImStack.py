@@ -15,14 +15,11 @@ import tkFileDialog as tkd
 import multiprocessing as mp
 import time
 import glob
-#from tracker_cm import Tracker
-##import sys
-#import matplotlib.pyplot as plt
 import trackpy as tp
 import random
 import csv
 import itertools
-from sklearn import cluster, datasets, mixture
+from sklearn import cluster
 
 
 
@@ -313,22 +310,20 @@ def getSubIms(dirname, imExts, pool, workers):
     tracks the fly using cv2.SimpleBlobDetector method and saves the tracked flies in folders
     '''
     flist = getFiles(dirname, imExts)
-    nImsToProcess = len(flist)
-    #print 'processing %i frames in\n==> %s'%(nImsToProcess, dirname)
-    startTime = time.time()
+    #startTime = time.time()
     imgStack = np.array(pool.map(imRead, flist), dtype=np.uint8)
-    t1 = time.time()-startTime
+    #t1 = time.time()-startTime
     #print("imRead time for %d frames: %s Seconds at %f FPS"%(len(flist),t1 ,len(flist)/float(t1)))
-    t1 = time.time()
+    #t1 = time.time()
     imStackChunks = np.array_split(imgStack, 4*workers, axis=1)
     imStackChunks = [x.copy() for x in imStackChunks if x.size > 0]
     bgImChunks = pool.map(getBgIm, imStackChunks)
     bgIm = np.array(np.vstack((bgImChunks)), dtype=np.uint8)
-    t2 = time.time()-t1
+    #t2 = time.time()-t1
     #print("bg calculation time for %d frames: %s Seconds at %f FPS"%(len(flist),t2 ,len(flist)/float(t2)))
-    t2 = time.time()
+    #t2 = time.time()
     subIms = np.array(pool.map(getBgSubIm, itertools.izip(imgStack, itertools.repeat(bgIm))), dtype=np.uint8)
-    t = time.time()-t2
+    #t = time.time()-t2
     #print("bg Subtraction time for %d frames: %s Seconds at %f FPS"%(len(flist),t ,len(flist)/float(t)))
     return imgStack, subIms, flist
 
