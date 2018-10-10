@@ -32,6 +32,8 @@ import copy
 
 
 nThreads = 4
+imDataFolder = 'imageData'
+
 
 frmBarName = 'frame Number'
 startFrmTrkBarName = 'Select Start Frame'
@@ -411,8 +413,18 @@ def getCroppedIms(imList):
 initDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/'
 dirName = getFolder(initDir)
 
+dirs = getDirList(dirName)
 
+rawDirs = [os.path.join(d, imDataFolder) for d in dirs]
+#rawDirs = [getDirList(d) for d in dirs]
 
+legTipFNames = []
+centroidFNames = []
+
+for _,rawdir in enumerate(rawDirs):
+    legTipFNames.extend(getFiles(rawdir+'/', ['*legTipLocs.csv']))
+    centroidFNames.extend(getFiles(rawdir, ['*centroids.csv']))
+'''
 
 legTipFNames = getFiles(dirName, ['*legTipLocs.csv'])
 centroidFNames = getFiles(dirName, ['*centroids.csv'])
@@ -568,7 +580,17 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,centroidFName
     #        cv2.waitKey(100)
     #    cv2.destroyAllWindows()
     
-#
+'''
+
+
+
+
+
+
+
+
+
+
 
 #--------
 
