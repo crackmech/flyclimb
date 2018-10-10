@@ -592,8 +592,8 @@ for _,rawDir in enumerate(rawDirs):
             totalNFrames +=nFrames
 pool.close()
 totSecs = time.time()-procStartTime
-print('Processing finished at: %05s, in %sSeconds, total processing speed: %05f FPS'\
-      %(present_time(),totSecs , totalNFrames/totSecs))
+print('Finished processing %d frames at: %05s, in %sSeconds, total processing speed: %05f FPS\n'\
+      %(totalNFrames, present_time(),totSecs , totalNFrames/totSecs))
 
 displayImgs(croppedIms,100)
 
