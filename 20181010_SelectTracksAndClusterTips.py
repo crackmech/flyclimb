@@ -427,10 +427,11 @@ def getCroppedIms(imList):
         imsAll.append(cv2.imread(imId, cv2.IMREAD_GRAYSCALE))
     return np.array(imsAll, dtype=np.uint8)
 
-
+def fixFrNames(frNameList, dirname):
+    return [os.path.join(dirname,os.sep.join(x.split(os.sep)[-4:])) for x in frNameList]
 
 initDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/'
-#initDir = '/media/pointgrey/data/flywalk/legTracking/'
+initDir = '/media/pointgrey/data/flywalk/legTracking/'
 dirName = getFolder(initDir)
 
 dirs = getDirList(dirName)
@@ -445,10 +446,16 @@ for _,rawdir in enumerate(rawDirs):
     legTipFNames.extend(getFiles(rawdir+'/', ['*legTipLocs.csv']))
     centroidFNames.extend(getFiles(rawdir, ['*centroids.csv']))
 
+sortedCentrds = []
+for _,f in enumerate(legTipFNames):
+    for _,x in enumerate(centroidFNames):
+        if f.split(os.sep)[-1].split('legTipsClus')[0] in x:
+            sortedCentrds.append(x)
+
 
 #legTipFNames = getFiles(dirName, ['*legTipLocs.csv'])
 #centroidFNames = getFiles(dirName, ['*centroids.csv'])
-for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,centroidFNames)):
+for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds)):
     rows = getlegTipData(legTipsCsv)
     valuesOri = np.array(rows[:,1:], dtype=np.float64)
     valuesPlt = valuesOri.copy()
@@ -457,7 +464,7 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,centroidFName
     cents = [x for _,x in enumerate(cents1) if x[1]!='noContourDetected']
     frNamesAll = [x[0] for _,x in enumerate(cents) if x[1]!='noContourDetected']
     centroids = np.array(cents)[:,1:].astype(dtype=np.float64)
-    
+    frNamesAll = fixFrNames(frNamesAll, dirName)
     frNamesTotal = copy.copy(frNamesAll)
     pool = mp.Pool(nThreads)
     frameIdx = []
