@@ -523,7 +523,7 @@ def getClusters(nclusters, locsArr, fname, imShape, workers):
 
 
 
-initialDir = '/media/pointgrey/data/flywalk/'
+initialDir = '/media/pointgrey/data/flywalk/legTracking/data/all/'
 #initialDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/tmp/pythonTmp/'
 #initialDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/copiedLegTrackingTrackData/'
 baseDir = getFolder(initialDir)
@@ -578,17 +578,22 @@ for _,rawDir in enumerate(rawDirs):
             fname = imdir.rstrip(os.sep)+'_legTipsClus_n'+str(legTipclusters)+'-Climbing'
             legTipLocs = getAllLocs(imdir, trackparams, legCntThresh, fname, pool, nThreads)
             allLocs, croppedIms = legTipLocs
+            locs = [x[-1] for x in allLocs]
             if len(allLocs)>25:
-                lbldLocs, frLabelsAll = getClusters(nclusters = legTipclusters, locsArr = allLocs,\
-                                       fname = fname, imShape = (2*heightCrop, 2*widthCrop),\
-                                       workers = nThreads)
+                try:
+                    np.vstack((locs))
+                    lbldLocs, frLabelsAll = getClusters(nclusters = legTipclusters, locsArr = allLocs,\
+                                           fname = fname, imShape = (2*heightCrop, 2*widthCrop),\
+                                           workers = nThreads)
+                except:
+                    print('legTips not tracked properly in %s'%imdir)
             print('==> Processed %i frames in %0.3f seconds at: %05f FPS'\
             %(nFrames, time.time()-startTime, (nFrames/(time.time()-startTime)))) 
             totalNFrames +=nFrames
 pool.close()
 totSecs = time.time()-procStartTime
-print('Processing finished at: %05s, in %sSeconds, total processing speed: %05f FPS'\
-      %(present_time(),totSecs , totalNFrames/totSecs))
+print('Finished processing %d frames at: %05s, in %sSeconds, total processing speed: %05f FPS\n'\
+      %(totalNFrames, present_time(),totSecs , totalNFrames/totSecs))
 
 displayImgs(croppedIms,100)
 
