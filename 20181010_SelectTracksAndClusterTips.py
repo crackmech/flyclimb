@@ -108,6 +108,11 @@ def getFiles(dirname, extList):
         filesList.extend(glob.glob(os.path.join(dirname, ext)))
     return natural_sort(filesList)
 
+def random_color():
+    levels = range(32,256,2)
+    return tuple(random.choice(levels) for _ in range(3))
+
+colors = [random_color() for i in xrange(20)]
 def readCsv(csvFname):
     rows = []
     with open(csvFname, 'r') as csvfile: 
@@ -155,6 +160,15 @@ def getImStackWithCentroids(flist, centroids, pool):
                 cv2.putText(imStack[i], str(j), (int(centroids[j][0]), int(centroids[j][1])), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0,255,255))
     return imStack
 
+def getImStackWithColor(imStack, centroids, color):
+    for i in xrange(len(imStack)):
+        for j in xrange(len(centroids)):
+            cv2.circle(imStack[i], (int(centroids[j][0]), int(centroids[j][1])), 2, color, 2)
+        for j in xrange(len(centroids)):
+            if j%50==0:
+                cv2.putText(imStack[i], str(j), (int(centroids[j][0]), int(centroids[j][1])), cv2.FONT_HERSHEY_COMPLEX, 0.5, (0,255,255))
+    return imStack
+
 
 def displayImgs(imgs, fps):
     f = 1000/fps
@@ -191,9 +205,10 @@ def setStopFrame(x):
     return stopFrame
 
 def getFinalSelection(x):
-    global frameIdx
+    global frameIdx, imgs
     if x==1:
         frameIdx.append([startFrame, stopFrame])
+        
         print 'Selected Frames: ',frameIdx
         cv2.setTrackbarPos(startFrmTrkBarName, windowName, 0)
         cv2.setTrackbarPos(stopFrmTrkBarName, windowName, 0)
@@ -212,7 +227,7 @@ def selectTrackFrames(flist, centroids, pool):
     Displays the images from the folder with overlayed centroids on the whole imstack.
     By using the slider, we can determine where to start and stop the track for legTip clustering.
     '''
-    global startFrame, stopFrame
+    global startFrame, stopFrame, imgs
     imgs = getImStackWithCentroids(flist, centroids, pool)
     cv2.namedWindow(windowName)
     cv2.moveWindow(windowName, 30,30)
@@ -239,7 +254,7 @@ def selectTrackFrames(flist, centroids, pool):
 
 
 def getClusImStack(xyValArr, nrows, ncols, clusids, clrs):
-    clusims = [[np.zeros((2*h,2*w,3), dtype = np.uint8) for x in xrange(ncols)]\
+    clusims = [[np.zeros((2*h,2*w,3), dtype = np.uint8)+20 for x in xrange(ncols)]\
                 for y in xrange(nrows) ]
     allClusImloc = [0,0]
     for i in xrange(nrows):
@@ -402,6 +417,10 @@ def checkLegAssignment():
             else:
                 print 'Select ', legList[i][j]
 
+def skipTrack():
+    global skipTrackVar
+    skipTrackVar=1
+
 def getCroppedIms(imList):
     imsAll = []
     for i, imId in enumerate(imList):
@@ -411,6 +430,7 @@ def getCroppedIms(imList):
 
 
 initDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/'
+#initDir = '/media/pointgrey/data/flywalk/legTracking/'
 dirName = getFolder(initDir)
 
 dirs = getDirList(dirName)
@@ -424,10 +444,10 @@ centroidFNames = []
 for _,rawdir in enumerate(rawDirs):
     legTipFNames.extend(getFiles(rawdir+'/', ['*legTipLocs.csv']))
     centroidFNames.extend(getFiles(rawdir, ['*centroids.csv']))
-'''
 
-legTipFNames = getFiles(dirName, ['*legTipLocs.csv'])
-centroidFNames = getFiles(dirName, ['*centroids.csv'])
+
+#legTipFNames = getFiles(dirName, ['*legTipLocs.csv'])
+#centroidFNames = getFiles(dirName, ['*centroids.csv'])
 for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,centroidFNames)):
     rows = getlegTipData(legTipsCsv)
     valuesOri = np.array(rows[:,1:], dtype=np.float64)
@@ -441,6 +461,7 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,centroidFName
     frNamesTotal = copy.copy(frNamesAll)
     pool = mp.Pool(nThreads)
     frameIdx = []
+    windowName = legTipsCsv.split(dirName)[1].split('_legTipsClus')[0]
     selectTrackFrames(frNamesAll, centroids, pool)
     print frameIdx
     pool.close()
@@ -499,88 +520,91 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,centroidFName
                 legBtn.grid(row = row, column = col)
                 legRow_matrix.append(btn)
             legBtn_matrix.append(legRow_matrix)
-        rstBtn = tk.Button(window, text = 'Reset',command = resetVals).grid(row=nRows+3, column=0)
+        rstBtn = tk.Button(window, text = 'Reset',bg='yellow', command = resetVals).grid(row=nRows+3, column=0)
         varMerge = tk.IntVar()
         varMerge.set(0)
         c1 = tk.Checkbutton(window, text="Merge Clusters", variable=varMerge, command = toggle1).grid(row=nRows+3, column=2)
         varAssign = tk.IntVar()
         varAssign.set(0)
         c2 = tk.Checkbutton(window, text="Assign Clusters to legs", variable=varAssign, command = toggle2).grid(row=nRows+3, column=3)
-        saveBtn = tk.Button(window, text = 'Save',command = checkLegAssignment).grid(row=nRows+4, column=0)
+        saveBtn = tk.Button(window, text = 'Save',bg='green', command = checkLegAssignment).grid(row=nRows+4, column=0)
+        skipTrackVar = 0
+        skipBtn = tk.Button(window, text = 'Skip this track!!', bg='red',command = skipTrack).grid(row=nRows+4, column=1)
         window.mainloop()
         print (np.unique(valuesPlt[:, cusIdCol]))
-    
-        legIdList = legListIds[0]+legListIds[1]
-        legFrList = []
-        for i, legId in enumerate(legIdList):
-            legFrList.append(np.where(valuesPlt[:,-1]==legId)[0])
-        legs = []
-        for i,legId in enumerate(legFrList):
-            lData = []
-            for _, val in enumerate(legId):
-                lData.append(valuesPlt[val])
-            legs.append(np.array(lData))
-        
-        nFrames= np.unique(valuesPlt[:,0])
-        legTipsLocsAsgnd = np.zeros((nLegs, len(nFrames)+1, 3))
-        for i, legData in enumerate(legs):
-            for j, data in enumerate(legData):
-                legTipsLocsAsgnd[i, np.where(nFrames==int(data[0])), 0] = data[0]
-                legTipsLocsAsgnd[i, np.where(nFrames==int(data[0])), 1:] = data[2:4]
-        
-        #-- automatically update the missing points in the legs based on previous and next location of the legTips
-        zeroId = 0
-        for leg in xrange(legTipsLocsAsgnd.shape[0]):
+
+        if skipTrackVar==0:
+            legIdList = legListIds[0]+legListIds[1]
+            legFrList = []
+            for i, legId in enumerate(legIdList):
+                legFrList.append(np.where(valuesPlt[:,-1]==legId)[0])
+            legs = []
+            for i,legId in enumerate(legFrList):
+                lData = []
+                for _, val in enumerate(legId):
+                    lData.append(valuesPlt[val])
+                legs.append(np.array(lData))
+            
+            nFrames= np.unique(valuesPlt[:,0])
+            legTipsLocsAsgnd = np.zeros((nLegs, len(nFrames)+1, 3))
+            for i, legData in enumerate(legs):
+                for j, data in enumerate(legData):
+                    legTipsLocsAsgnd[i, np.where(nFrames==int(data[0])), 0] = data[0]
+                    legTipsLocsAsgnd[i, np.where(nFrames==int(data[0])), 1:] = data[2:4]
+            
+            #-- automatically update the missing points in the legs based on previous and next location of the legTips
             zeroId = 0
-            for i in xrange(legTipsLocsAsgnd.shape[1]):
-                if i>0:
-                    if legTipsLocsAsgnd[leg,i,0]==0:
-                        zeroId +=1
-                    else:
-                        if zeroId>0:
-                            startZeroPt = i-zeroId 
-                            if zeroId>2:
-                                legTipsLocsAsgnd[leg,startZeroPt:i,1:] = intermediates(legTipsLocsAsgnd[leg,startZeroPt-1,1:], legTipsLocsAsgnd[leg,i,1:], zeroId).astype(dtype=np.int)
-                            else:
-                                legTipsLocsAsgnd[leg,startZeroPt,1:] = legTipsLocsAsgnd[leg,i,1:]
-                                legTipsLocsAsgnd[leg,startZeroPt:i,1:] = legTipsLocsAsgnd[leg,i,1:]
-                            legTipsLocsAsgnd[leg,startZeroPt:i,0] = np.arange(startZeroPt,i)
-                            zeroId=0
-        saveDir = '-'.join(centroidsCsv.split('-')[:-1])+'/tmp_'+str(nFrameIdx)+'/'
-        try:
-            os.makedirs(saveDir)
-            os.makedirs(saveDir+'legs')
-            os.makedirs(saveDir+'labelled')
-        except:
-            pass
-        
-        centSeq = np.arange(len(centSlice))
-        centSeq = centSeq.reshape((len(centSeq),1))
-        centSlice = np.hstack((centSeq, centSlice, centSeq))
-        legNameList = legList[0]+ legList[1]
-        csvOutFile = saveDir+'fly_free.tsv'
-        with open(csvOutFile, "wb") as f:
-            writer = csv.writer(f, delimiter='\t')
-            writer.writerow(['', 'X', 'Y', 'Major', 'Minor', 'Angle', 'Slice'])
-            writer.writerows(centSlice)
-        for leg in xrange(legTipsLocsAsgnd.shape[0]):
-            csvOutFile = saveDir+'legs/'+legNameList[leg]+'.tsv'
+            for leg in xrange(legTipsLocsAsgnd.shape[0]):
+                zeroId = 0
+                for i in xrange(legTipsLocsAsgnd.shape[1]):
+                    if i>0:
+                        if legTipsLocsAsgnd[leg,i,0]==0:
+                            zeroId +=1
+                        else:
+                            if zeroId>0:
+                                startZeroPt = i-zeroId 
+                                if zeroId>2:
+                                    legTipsLocsAsgnd[leg,startZeroPt:i,1:] = intermediates(legTipsLocsAsgnd[leg,startZeroPt-1,1:], legTipsLocsAsgnd[leg,i,1:], zeroId).astype(dtype=np.int)
+                                else:
+                                    legTipsLocsAsgnd[leg,startZeroPt,1:] = legTipsLocsAsgnd[leg,i,1:]
+                                    legTipsLocsAsgnd[leg,startZeroPt:i,1:] = legTipsLocsAsgnd[leg,i,1:]
+                                legTipsLocsAsgnd[leg,startZeroPt:i,0] = np.arange(startZeroPt,i)
+                                zeroId=0
+            saveDir = '-'.join(centroidsCsv.split('-')[:-1])+'_'+str(nFrameIdx)+'/tmp/'
+            try:
+                os.makedirs(saveDir)
+                os.makedirs(saveDir+'legs')
+                os.makedirs(saveDir+'labelled')
+            except:
+                pass
+            
+            centSeq = np.arange(len(centSlice))
+            centSeq = centSeq.reshape((len(centSeq),1))
+            centSlice = np.hstack((centSeq, centSlice, centSeq))
+            legNameList = legList[0]+ legList[1]
+            csvOutFile = saveDir+'fly_free.tsv'
             with open(csvOutFile, "wb") as f:
                 writer = csv.writer(f, delimiter='\t')
-                writer.writerow([legNameList[leg], 'X','Y'])
-                writer.writerows(legTipsLocsAsgnd[leg])
-        for i in xrange(len(selIms)):
-            im = cv2.cvtColor(selIms[i], cv2.COLOR_GRAY2BGR)
-            for l in xrange(nLegs):
-                cv2.circle(im,(int(legTipsLocsAsgnd[l,i,1]),int(legTipsLocsAsgnd[l,i,2])), 2, colors[l], 2 )
-        for i,ims in enumerate(selIms):
-            cv2.imwrite(saveDir+'f'+str(i)+'.jpeg', ims)
-            cv2.imwrite(saveDir+'labelled/f'+str(i)+'.jpeg', ims)
-    #        cv2.imshow('123', im)
-    #        cv2.waitKey(100)
-    #    cv2.destroyAllWindows()
-    
-'''
+                writer.writerow(['', 'X', 'Y', 'Major', 'Minor', 'Angle', 'Slice'])
+                writer.writerows(centSlice)
+            for leg in xrange(legTipsLocsAsgnd.shape[0]):
+                csvOutFile = saveDir+'legs/'+legNameList[leg]+'.tsv'
+                with open(csvOutFile, "wb") as f:
+                    writer = csv.writer(f, delimiter='\t')
+                    writer.writerow([legNameList[leg], 'X','Y'])
+                    writer.writerows(legTipsLocsAsgnd[leg])
+            for i in xrange(len(selIms)):
+                ims = cv2.cvtColor(selIms[i], cv2.COLOR_GRAY2BGR)
+                for l in xrange(nLegs):
+                    cv2.circle(ims,(int(legTipsLocsAsgnd[l,i,1]),int(legTipsLocsAsgnd[l,i,2])), 2, colors[l], 2 )
+                cv2.imwrite(saveDir+'f'+str(i)+'.jpeg', ims)
+                cv2.imwrite(saveDir+'labelled/f'+str(i)+'.jpeg', ims)
+                cv2.imshow('123', ims)
+                cv2.waitKey(100)
+            cv2.destroyAllWindows()
+    else:
+        print 'Track skipped'
+
 
 
 
