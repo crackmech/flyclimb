@@ -150,7 +150,9 @@ def setColors(trackData):
     return [(blue[i], green[i], red[i]) for i in xrange(len(trackData))]
 
 def getImStackWithCentroids(flist, centroids, pool):
+    print('Reading %d frames'%len(flist))
     imStack = getImStack(flist, pool)
+    print('Read %d frames, now marking centroids'%len(flist))
     colors = setColors(centroids)
     for i in xrange(len(imStack)):
         for j in xrange(len(centroids)):
@@ -229,6 +231,7 @@ def selectTrackFrames(flist, centroids, pool):
     '''
     global startFrame, stopFrame, imgs
     imgs = getImStackWithCentroids(flist, centroids, pool)
+    print('Read images, now displaying')
     cv2.namedWindow(windowName)
     cv2.moveWindow(windowName, 30,30)
     cv2.createTrackbar(frmBarName, windowName, 0, (len(imgs)-2), nothing)
@@ -430,8 +433,8 @@ def getCroppedIms(imList):
 def fixFrNames(frNameList, dirname):
     return [os.path.join(dirname,os.sep.join(x.split(os.sep)[-4:])) for x in frNameList]
 
-initDir = '/media/aman/data/flyWalk_data/climbingData/gait/data/'
-initDir = '/media/pointgrey/data/flywalk/legTracking/'
+initDir = '/media/aman/data/flyWalk_data/climbingData/gait/allData/'
+#initDir = '/media/pointgrey/data/flywalk/legTracking/'
 dirName = getFolder(initDir)
 
 dirs = getDirList(dirName)
@@ -456,6 +459,8 @@ for _,f in enumerate(legTipFNames):
 #legTipFNames = getFiles(dirName, ['*legTipLocs.csv'])
 #centroidFNames = getFiles(dirName, ['*centroids.csv'])
 for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds)):
+    print ('LegTipsCsv Name ==> \n%s'%os.sep.join(legTipsCsv.split(os.sep)[-4:]))
+    print ('CentroidsCSV name ==> \n%s'%os.sep.join(centroidsCsv.split(os.sep)[-4:]))
     rows = getlegTipData(legTipsCsv)
     valuesOri = np.array(rows[:,1:], dtype=np.float64)
     valuesPlt = valuesOri.copy()
@@ -470,13 +475,13 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds
     frameIdx = []
     windowName = legTipsCsv.split(dirName)[1].split('_legTipsClus')[0]
     selectTrackFrames(frNamesAll, centroids, pool)
-    print frameIdx
+    print ('total tracks to be processed: %d'%len(frameIdx))
     pool.close()
     for nFrameIdx,frNumb in enumerate(frameIdx):
         frNamesSlice  = frNamesAll[frNumb[0]:frNumb[1]]
         centSlice = centroids[frNumb[0]:frNumb[1], :]
         allIms = getCroppedIms(frNamesSlice)
-        print len(allIms)
+        print ('Read %d frames for legTip Clustering'%len(allIms))
         frHeight, frWidth = allIms[0].shape
         selIms = []
         for i,f in enumerate(centSlice):
@@ -490,12 +495,12 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds
         selIms = np.array(selIms, dtype=np.uint8)
         #displayImgs(selIms, 20)
         frNames = rows[:,0]
+        frNames = np.array(fixFrNames(frNames, dirName))
         vals = []
         for _, fId in enumerate(frNamesSlice):
             idx = np.where(frNames==fId)
             for _, i in enumerate(idx):
                 vals.append(valuesOri[i])
-        
         valuesOriSlice = np.vstack(vals)
         valuesPlt = valuesOriSlice.copy()
         nClusters = len(np.unique(valuesPlt[:, cusIdCol]))
@@ -529,7 +534,7 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds
             legBtn_matrix.append(legRow_matrix)
         rstBtn = tk.Button(window, text = 'Reset',bg='yellow', command = resetVals).grid(row=nRows+3, column=0)
         varMerge = tk.IntVar()
-        varMerge.set(0)
+        varMerge.set(1)
         c1 = tk.Checkbutton(window, text="Merge Clusters", variable=varMerge, command = toggle1).grid(row=nRows+3, column=2)
         varAssign = tk.IntVar()
         varAssign.set(0)
