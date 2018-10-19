@@ -26,9 +26,9 @@ import time
 import glob
 import random
 import csv
-import itertools
 from PIL import ImageTk, Image
-import copy
+from tkMessageBox import showwarning, showinfo
+#import copy
 
 
 nThreads = 4
@@ -42,7 +42,7 @@ addSelectionTrckBar = 'Add frames'
 removeSelectionTrckBar = 'Remove frames'
 
 windowName = 'trackImage'
-
+imReadStep = 10
 startFrame = 0
 stopFrame = -1
 frameIdx = []
@@ -112,7 +112,7 @@ def random_color():
     levels = range(32,256,2)
     return tuple(random.choice(levels) for _ in range(3))
 
-colors = [random_color() for i in xrange(20)]
+#colors = [random_color() for i in xrange(20)]
 def readCsv(csvFname):
     rows = []
     with open(csvFname, 'r') as csvfile: 
@@ -126,6 +126,18 @@ def getlegTipData(csvFname):
 
 def getCentroidData(csvFname):
     return readCsv(csvFname)[1:]
+
+def getEuDisCenter(pt1, pt2):
+    return np.sqrt(np.square(pt1[0]-pt2[0])+np.square(pt1[1]-pt2[1]))
+
+def getTotEuDis(xyArr):
+    xyArr = np.array(xyArr)
+    n = xyArr.shape[0]
+    totDis = np.zeros((n-1))
+    for i in xrange(0, n-1):
+        totDis[i] = getEuDisCenter(xyArr[i], xyArr[i+1])
+    return totDis
+    
 
 def imRead(x):
     return cv2.imread(x, cv2.IMREAD_COLOR)
@@ -149,9 +161,10 @@ def setColors(trackData):
     red = np.linspace(0, 255, num = len(trackData))
     return [(blue[i], green[i], red[i]) for i in xrange(len(trackData))]
 
-def getImStackWithCentroids(flist, centroids, pool):
+def getImStackWithCentroids(flist, centroids, imReadStep, pool):
     print('Reading %d frames'%len(flist))
-    imStack = getImStack(flist, pool)
+    imList = [flist[x] for x in xrange(0, len(flist), imReadStep)]
+    imStack = getImStack(imList, pool)
     print('Read %d frames, now marking centroids'%len(flist))
     colors = setColors(centroids)
     for i in xrange(len(imStack)):
@@ -209,7 +222,7 @@ def setStopFrame(x):
 def getFinalSelection(x):
     global frameIdx, imgs
     if x==1:
-        frameIdx.append([startFrame, stopFrame])
+        frameIdx.append([startFrame*imReadStep, stopFrame*imReadStep])
         
         print 'Selected Frames: ',frameIdx
         cv2.setTrackbarPos(startFrmTrkBarName, windowName, 0)
@@ -223,38 +236,57 @@ def popLastSelection(x):
         cv2.setTrackbarPos(startFrmTrkBarName, windowName, 0)
         cv2.setTrackbarPos(stopFrmTrkBarName, windowName, 0)
 
-def selectTrackFrames(flist, centroids, pool):
+def selTrackIm(event, x, y, flags, param):
+    global startFrame, stopFrame, imgs
+    if event==cv2.EVENT_LBUTTONDBLCLK:
+        flist, centroids, imReadStep, pool = param
+        imgs = getImStackWithCentroids(flist, centroids, imReadStep, pool)
+        print('Read images, now displaying')
+        cv2.namedWindow(windowName)
+        cv2.moveWindow(windowName, 30,30)
+        cv2.createTrackbar(frmBarName, windowName, 0, (len(imgs)-2), nothing)
+        cv2.createTrackbar(startFrmTrkBarName, windowName, 0, 1, setStartFrame)
+        cv2.createTrackbar(stopFrmTrkBarName, windowName, 0, 1, setStopFrame)
+        cv2.createTrackbar(addSelectionTrckBar, windowName, 0, 1, getFinalSelection)
+        cv2.createTrackbar(removeSelectionTrckBar, windowName, 0, 1, popLastSelection)
+        cv2.setTrackbarPos(frmBarName, windowName, 0)
+        cv2.setTrackbarPos(startFrmTrkBarName, windowName, 0)
+        cv2.setTrackbarPos(stopFrmTrkBarName, windowName, 0)
+        cv2.setTrackbarPos(removeSelectionTrckBar, windowName, 0)
+        while (1):
+            imgNum = cv2.getTrackbarPos(frmBarName, windowName)
+            cv2.imshow(windowName,imgs[imgNum] )
+            k = cv2.waitKey(10) & 0xFF
+            if k == 27:
+                break
+        cv2.destroyWindow(windowName)
+        
+
+def selectTrackFrames(flist, centroids, imReadStep, pool):
     
     '''
     Displays the images from the folder with overlayed centroids on the whole imstack.
     By using the slider, we can determine where to start and stop the track for legTip clustering.
     '''
     global startFrame, stopFrame, imgs
-    imgs = getImStackWithCentroids(flist, centroids, pool)
-    print('Read images, now displaying')
-    cv2.namedWindow(windowName)
-    cv2.moveWindow(windowName, 30,30)
-    cv2.createTrackbar(frmBarName, windowName, 0, (len(imgs)-2), nothing)
-    cv2.createTrackbar(startFrmTrkBarName, windowName, 0, 1, setStartFrame)
-    cv2.createTrackbar(stopFrmTrkBarName, windowName, 0, 1, setStopFrame)
-    cv2.createTrackbar(addSelectionTrckBar, windowName, 0, 1, getFinalSelection)
-    cv2.createTrackbar(removeSelectionTrckBar, windowName, 0, 1, popLastSelection)
-    cv2.setTrackbarPos(frmBarName, windowName, 0)
-    cv2.setTrackbarPos(startFrmTrkBarName, windowName, 0)
-    cv2.setTrackbarPos(stopFrmTrkBarName, windowName, 0)
-    cv2.setTrackbarPos(removeSelectionTrckBar, windowName, 0)
-    while (1):
-        imgNum = cv2.getTrackbarPos(frmBarName, windowName)
-        cv2.imshow(windowName,imgs[imgNum] )
-        k = cv2.waitKey(1) & 0xFF
+    baseWinName = 'tmp_'+windowName
+    param = [flist, centroids, imReadStep, pool]
+    baseIm = cv2.imread(flist[0])
+    colors = setColors(centroids)
+    for j in xrange(len(centroids)):
+        cv2.circle(baseIm, (int(centroids[j][0]), int(centroids[j][1])), 2, colors[j], 2)
+    for j in xrange(len(centroids)):
+        if j%50==0:
+            cv2.putText(baseIm, str(j), (int(centroids[j][0]), int(centroids[j][1])), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255))
+    cv2.putText(baseIm, "Double Click on the image to select Frames with straight track\n press 'Esc' to go to next track", (10,30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,255))
+    cv2.namedWindow(baseWinName)
+    cv2.setMouseCallback(baseWinName, selTrackIm, param)
+    while(1):
+        cv2.imshow(baseWinName,baseIm)
+        k = cv2.waitKey(20) & 0xFF
         if k == 27:
             break
-    cv2.destroyWindow(windowName)
-
-
-
-
-
+    cv2.destroyAllWindows()
 
 def getClusImStack(xyValArr, nrows, ncols, clusids, clrs):
     clusims = [[np.zeros((2*h,2*w,3), dtype = np.uint8)+20 for x in xrange(ncols)]\
@@ -412,17 +444,28 @@ def assignLeg(i,j):
             print ('Assigned to leg %s'%legList[x][y])
 
 def checkLegAssignment():
+    selLeg = 0
     aa = (np.unique(valuesPlt[:, -1]))
     for i,x in enumerate(legListIds):
         for j, y in enumerate(x):
-            if y in aa:
-                print 'found', legList[i][j]
-            else:
-                print 'Select ', legList[i][j]
+            if y not in aa:
+                selLeg = 1
+                print 'Select', legList[i][j]
+    return selLeg, legList[i][j]
 
 def skipTrack():
     global skipTrackVar
     skipTrackVar=1
+    window.destroy()
+
+def saveTrack():
+    global skipTrackVar
+    skipTrackVar=0
+    legSelVar, legSelVal = checkLegAssignment()
+    if legSelVar==1:
+        showwarning('Do not close', 'Select '+legSelVal)
+    elif legSelVar==0:
+        window.destroy()
 
 def getCroppedIms(imList):
     imsAll = []
@@ -434,9 +477,13 @@ def fixFrNames(frNameList, dirname):
     return [os.path.join(dirname,os.sep.join(x.split(os.sep)[-4:])) for x in frNameList]
 
 initDir = '/media/aman/data/flyWalk_data/climbingData/gait/allData/'
+initDir = '/media/aman/easystore/data_legTracking/'
 #initDir = '/media/pointgrey/data/flywalk/legTracking/'
-dirName = getFolder(initDir)
 
+
+euDisThresh = 500
+
+dirName = getFolder(initDir)
 dirs = getDirList(dirName)
 
 rawDirs = [os.path.join(d, imDataFolder) for d in dirs]
@@ -463,52 +510,47 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds
     print ('CentroidsCSV name ==> \n%s'%os.sep.join(centroidsCsv.split(os.sep)[-4:]))
     rows = getlegTipData(legTipsCsv)
     valuesOri = np.array(rows[:,1:], dtype=np.float64)
-    valuesPlt = valuesOri.copy()
-    
     cents1 = getCentroidData(centroidsCsv)
     cents = [x for _,x in enumerate(cents1) if x[1]!='noContourDetected']
-    frNamesAll = [x[0] for _,x in enumerate(cents) if x[1]!='noContourDetected']
+    frNamesAll = [x[0] for _,x in enumerate(cents)]
     centroids = np.array(cents)[:,1:].astype(dtype=np.float64)
     frNamesAll = fixFrNames(frNamesAll, dirName)
-    frNamesTotal = copy.copy(frNamesAll)
+    totEuDis = getTotEuDis(centroids[:,:2])
+    if np.sum(totEuDis)<euDisThresh:
+        continue
     pool = mp.Pool(nThreads)
     frameIdx = []
     windowName = legTipsCsv.split(dirName)[1].split('_legTipsClus')[0]
-    selectTrackFrames(frNamesAll, centroids, pool)
+    selectTrackFrames(frNamesAll, centroids, imReadStep, pool)
     print ('total tracks to be processed: %d'%len(frameIdx))
     pool.close()
     for nFrameIdx,frNumb in enumerate(frameIdx):
         frNamesSlice  = frNamesAll[frNumb[0]:frNumb[1]]
         centSlice = centroids[frNumb[0]:frNumb[1], :]
-        allIms = getCroppedIms(frNamesSlice)
-        print ('Read %d frames for legTip Clustering'%len(allIms))
-        frHeight, frWidth = allIms[0].shape
-        selIms = []
-        for i,f in enumerate(centSlice):
-            try:
-                cent = np.array(f).astype(dtype=np.float64)#centroids[idx].astype(np.int)
-                ptW, ptH = int(cent[0]), int(cent[1])
-                if w<ptW<frWidth-w and h<ptH<frHeight-h :
-                    selIms.append(allIms[i][ptH-h:ptH+h, ptW-w:ptW+w])
-            except:
-                pass
-        selIms = np.array(selIms, dtype=np.uint8)
-        #displayImgs(selIms, 20)
-        frNames = rows[:,0]
-        frNames = np.array(fixFrNames(frNames, dirName))
+        frHeight, frWidth = cv2.imread(frNamesSlice[0], cv2.IMREAD_GRAYSCALE).shape
+        frNames = np.array(fixFrNames(rows[:,0], dirName))
         vals = []
-        for _, fId in enumerate(frNamesSlice):
-            idx = np.where(frNames==fId)
-            for _, i in enumerate(idx):
-                vals.append(valuesOri[i])
+        selIms = []
+        for i, fId in enumerate(frNamesSlice):
+            cent = np.array(centSlice[i]).astype(dtype=np.float64)
+            ptW, ptH = int(cent[0]), int(cent[1])
+            if w<ptW<frWidth-w and h<ptH<frHeight-h :
+                idx = np.where(frNames==fId)
+                if len(idx[0])>0:
+                    for _, x in enumerate(idx):
+                        vals.append(valuesOri[x])
+                        selIms.append(cv2.imread(frNamesSlice[i], cv2.IMREAD_GRAYSCALE)[ptH-h:ptH+h, ptW-w:ptW+w])
         valuesOriSlice = np.vstack(vals)
         valuesPlt = valuesOriSlice.copy()
         nClusters = len(np.unique(valuesPlt[:, cusIdCol]))
         nRows = (nClusters/nCols)+1
         clusIds = getClusIdNew(nRows, nCols)
         clusIms = getClusImStack(valuesPlt, nRows, nCols, clusIds, colors)
+        selIms = np.array(selIms, dtype=np.uint8)
+        print ('Read %d frames for legTip Clustering'%len(selIms))
+        #displayImgs(selIms, 20)
     
-        print (np.unique(valuesPlt[:, cusIdCol]))
+        print ('Number of unique clusters present before clustering: %d'% len(np.unique(valuesPlt[:, cusIdCol])))
         nClicks = 0
         clickedImId = []
         window = tk.Tk()
@@ -532,6 +574,7 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds
                 legBtn.grid(row = row, column = col)
                 legRow_matrix.append(btn)
             legBtn_matrix.append(legRow_matrix)
+        skipBtn = tk.Button(window, text = 'Skip this track!!', bg='red',command = skipTrack).grid(row=nRows+1, column=0)
         rstBtn = tk.Button(window, text = 'Reset',bg='yellow', command = resetVals).grid(row=nRows+3, column=0)
         varMerge = tk.IntVar()
         varMerge.set(1)
@@ -539,13 +582,13 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds
         varAssign = tk.IntVar()
         varAssign.set(0)
         c2 = tk.Checkbutton(window, text="Assign Clusters to legs", variable=varAssign, command = toggle2).grid(row=nRows+3, column=3)
-        saveBtn = tk.Button(window, text = 'Save',bg='green', command = checkLegAssignment).grid(row=nRows+4, column=0)
+        saveBtn = tk.Button(window, text = 'Check leg assignment',bg='green', command = checkLegAssignment).grid(row=nRows+4, column=0)
         skipTrackVar = 0
-        skipBtn = tk.Button(window, text = 'Skip this track!!', bg='red',command = skipTrack).grid(row=nRows+4, column=1)
+        saveBtn = tk.Button(window, text = 'SAVE', bg='violet',command = saveTrack).grid(row=nRows+4, column=1)
         window.mainloop()
-        print (np.unique(valuesPlt[:, cusIdCol]))
-
+        print ('Number of unique clusters present after clustering: %d'% len(np.unique(valuesPlt[:, cusIdCol])))
         if skipTrackVar==0:
+            print ('Now saving legClusters...')
             legIdList = legListIds[0]+legListIds[1]
             legFrList = []
             for i, legId in enumerate(legIdList):
@@ -612,7 +655,7 @@ for iCsv, (legTipsCsv, centroidsCsv) in enumerate(zip(legTipFNames,sortedCentrds
                 cv2.imwrite(saveDir+'f'+str(i)+'.jpeg', ims)
                 cv2.imwrite(saveDir+'labelled/f'+str(i)+'.jpeg', ims)
                 cv2.imshow('123', ims)
-                cv2.waitKey(100)
+                cv2.waitKey(10)
             cv2.destroyAllWindows()
     else:
         print 'Track skipped'
