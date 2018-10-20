@@ -23,8 +23,13 @@ from statsmodels.stats.multicomp import pairwise_tukeyhsd
 from statsmodels.stats.libqsturng import psturng
 from statsmodels.stats.anova import AnovaRM
 import pandas as pd
-
-
+import matplotlib.patches as mpatches
+import matplotlib
+matplotlib.rcParams['pdf.fonttype'] = 42
+col=1
+plt.rcParams['axes.facecolor'] = (col,col,col)
+fontSize = 14
+plt.rc('axes', titlesize = fontSize)
 
 markers = ['^','s','v','d','o', 'P']
 
@@ -41,6 +46,41 @@ colors = [(0/div,0/div,0/div,alfa),#gray
              (240/div,228/div,66/div,alfa),#yellow
              (220/div,198/div,66/div,alfa)#dark yellowish
              ]
+
+sWidth = 0.012
+sSize = 5
+sMarker = 'o'
+sAlpha = 0.6
+sLinewidth = 0.2
+sEdgCol = (0,0,0)
+sCol = (0,0,0)
+
+
+# Leg order
+legs = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3']
+# Contra pair order
+contralateral_pairs = map(str, [1, 2, 3])
+# Ipsi pair order
+ipsilateral_pairs = map(str, [1, 2, 3, 4])
+concurrency_states = map(str, [3, 2, 1, 0])
+concurrency_states = ['S0', 'S1', 'S2', 'S3']
+
+specs = {
+          'LEG_BODY_ANGLE'    :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(-220, 220), 'YLABEL':'Degrees', 'TITLE':'Leg-Body Angle', 'sSize': 1, 'sAlpha':0.3},
+          'SWING_AMPLITUDE'   :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(0, 2500), 'YLABEL':'um', 'TITLE':'Swing Amplitude', 'sSize': 0.5, 'sAlpha':0.3},
+          'SWING_DURATION'    :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(0, 125), 'YLABEL':'ms', 'TITLE':'Swing Duration', 'sSize': 1, 'sAlpha':0.1},
+          'STANCE_AMPLITUDE'   :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(0, 2500), 'YLABEL':'um', 'TITLE':'Stance Amplitude', 'sSize': 0.5, 'sAlpha':0.3},
+          'STANCE_DURATION'   :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(0, 200), 'YLABEL':'ms', 'TITLE':'Stance Duration', 'sSize': 1, 'sAlpha':0.1},
+          'AEPx'              :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(-5000, 5000), 'YLABEL':'um', 'TITLE':'Anterior Extreme Position w.r.t. X', 'sSize': 1, 'sAlpha':0.3},
+          'PEPx'              :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(-5000, 5000), 'YLABEL':'um', 'TITLE':'Posterior Extreme Position w.r.t. X', 'sSize': 1, 'sAlpha':0.3},
+          'AEA'               :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(-220, 220), 'YLABEL':'Degrees', 'TITLE':'Anterior Extreme Angle', 'sSize': 1, 'sAlpha':0.3},
+          'PEA'               :   {'PLOT':'BOX', 'ENTITIES':legs, 'YLIMS':(-220, 220), 'YLABEL':'Degrees', 'TITLE':'Posterior Extreme Angle', 'sSize': 1, 'sAlpha':0.3},
+          'CCI'               :   {'PLOT':'BOX', 'ENTITIES':contralateral_pairs, 'YLIMS':(0.75, 1.02), 'YLABEL':'/s', 'TITLE':'Contra-lateral Coordination Index', 'sSize': 1, 'sAlpha':0.3},
+          'ICI'               :   {'PLOT':'BOX', 'ENTITIES':ipsilateral_pairs, 'YLIMS':(0.75, 1.02), 'YLABEL':'/s', 'TITLE':'Ipsi-lateral Coordination Index', 'sSize': 1, 'sAlpha':0.3},
+          'WALK_SPEED'        :   {'PLOT':'BOX', 'ENTITIES':['Speed'], 'YLIMS':(0, 40), 'YLABEL':'mm/s', 'TITLE':'Average Walking Speed', 'sSize': 8, 'sAlpha':0.5},
+          'STOLEN_SWINGS'     :   {'PLOT':'BOX', 'ENTITIES':['Swings/cycle'], 'YLIMS':(0, 1.2), 'YLABEL':'#/cycle', 'TITLE':'Stolen Swings Per Cycle', 'sSize': 1, 'sAlpha':0.3},
+          'CONCURRENCY'       :   {'PLOT':'PIE', 'ENTITIES':concurrency_states, 'YLIMS':(0, 100.0), 'YLABEL':'%', 'TITLE':'Proportional Concurrency States', 'sSize': 3, 'sAlpha':0.5},
+          }
 
 def present_time():
         now = datetime.now()
@@ -75,7 +115,7 @@ def random_color():
     levels = range(32,256,2)
     return tuple(random.choice(levels) for _ in range(3))
 
-#colors = [random_color() for i in xrange(20)]
+colorsRandom = [random_color() for c in xrange(1000)]
 def readCsv(csvFname):
     rows = []
     with open(csvFname, 'r') as csvfile: 
@@ -94,7 +134,6 @@ def readConcCsv(ConcCsvFname):
     
 def restrucDataForStats(dataSet, dataSetLabels):
     restrucData = [[[] for y in dataSetLabels] for x in dataSet[0][0]]
-    
     maxLen = max([len(x) for x in dataSet])
     for i in xrange(len(dataSet)):
         for j in xrange(1, maxLen):
@@ -109,7 +148,6 @@ def restrucDataForStats(dataSet, dataSetLabels):
 
 def restrucDataForRMA(dataSet, dataSetLabels):
     restrucData = [[[] for y in dataSetLabels] for x in dataSet[0][0]]
-    
     maxLen = min([len(x) for x in dataSet])
     for i in xrange(len(dataSet)):
         for j in xrange(1, maxLen):
@@ -120,7 +158,7 @@ def restrucDataForRMA(dataSet, dataSetLabels):
             for k,d in enumerate(temp_data):
                 if d!='':
                     restrucData[k][i].append(np.float(d))
-    return restrucData
+    return restrucData, dataSet[0][0]
 
 def getKWmultiComp(data, labels, verbose=False):
     pVals = sp.posthoc_dunn(data, p_adjust='bonferroni')
@@ -135,89 +173,59 @@ def getOWANOVAmultiComp(data, labels, verbose=False):
         print (res.summary())
     return psturng(np.abs(res.meandiffs / res.std_pairs), len(res.groupsunique), res.df_total)
     
+def getRMAnova(dataSet, labels, verbose=False):
+    tlabels = np.concatenate([[labels[j] for _,y in enumerate(x) ]for j,x in enumerate(dataSet)])
+    concatData = np.concatenate(dataSet)
+    ids = np.concatenate([np.arange(len(x)) for _,x in enumerate(dataSet)])
+    d = {'id':ids, 'rt':concatData, 'cond':tlabels}
+    df = pd.DataFrame(d)
+    anovarm = AnovaRM(df, 'rt', 'id', within=['cond'])
+    res = anovarm.fit()
+    if verbose:
+        print (res.summary())
+    return res
 
-ctrl = 'W1118_'
-exp1 = 'W1118xLrrk-ex1'
-exp2 = 'Park25xLrrk-ex1'
+def getConcStats(tData, datasetLabels, param, labels, pNormMin, verbose=False):
+    statsData = [['Repeated Measures ANOVA for Concurrency states (S0, S1, S2, S3)']]
+    for i,x in enumerate(tData):
+        label = '---'+param+'_'+labels[i]+'---'
+        rma = getRMAnova(x, datasetLabels, verbose)
+        statsData.append([label])
+        statsData.append([rma.anova_table])
+        statsData.append([rma.summary()])
+    return statsData
 
-dataSets = [ctrl,exp1,exp2]
- 
-baseDir = '/media/aman/data/flyWalk_data/climbingData/gait/allData/copied/analyzed/'
+def getStats(tData, datasetLabels, param, labels, pNormMin, verbose=False):
+    c = datasetLabels[0]
+    e1 = datasetLabels[1]
+    e2 = datasetLabels[2]
+    statsData = []
+    statsData.append(['Test and Parameter', 'p-Value', 'p-Value', 'p-Value'])
+    statsData.append(['',c+' vs. '+e1, c+' vs. '+e2, e1+' vs. '+e2])
+    for i in xrange(len(tData)):
+        label = '---'+param+'_'+labels[i]+'---'
+        print label
+        normP = []
+        for j in xrange(len(tData[i])):
+            _, pValue = stats.normaltest(tData[i][j])
+            normP.append(pValue)
+        if min(normP)<pNormMin:
+            testUsed = 'Kruskal-Wallis test'
+            _, statsP = stats.kruskal(*tData[i])
+            print testUsed+' pValue:', statsP,'---'
+            multiCompP = getKWmultiComp(tData[i], datasetLabels, verbose)
+        else:
+            testUsed = 'One Way ANOVA'
+            _, statsP = stats.f_oneway(*tData[i])
+            print testUsed+' pValue:', statsP
+            multiCompP = list(getOWANOVAmultiComp(tData[i], datasetLabels, verbose))
+        statsData.append([label])
+        statsData.append(['normalityTestStats']+normP)
+        statsData.append([testUsed,statsP])
+        statsData.append(['MultipleComparisons p-Value']+multiCompP)
+        statsData.append([])
+    return statsData
 
-paramTitles = ['CONCURRENCY','STANCE_AMPLITUDE', 'STANCE_DURATION', 'SWING_AMPLITUDE', 'SWING_DURATION', 'WALK_SPEED']
-
-csvsCtrl = getFiles(baseDir, [ctrl+'*.csv'])
-csvsExp1 = getFiles(baseDir, [exp1+'*.csv'])
-csvsExp2 = getFiles(baseDir, [exp2+'*.csv'])
-
-csvs1Ctrl = [x for _,x in enumerate(csvsCtrl) if 'CONCURRENCY' not in x]
-csvs1Exp1 = [x for _,x in enumerate(csvsExp1) if 'CONCURRENCY' not in x]
-csvs1Exp2 = [x for _,x in enumerate(csvsExp2) if 'CONCURRENCY' not in x]
-
-concCsvCtrl = [x for _,x in enumerate(csvsCtrl) if 'CONCURRENCY' in x]
-concCsvExp1 = [x for _,x in enumerate(csvsExp1) if 'CONCURRENCY' in x]
-concCsvExp2 = [x for _,x in enumerate(csvsExp2) if 'CONCURRENCY' in x]
-
-
-dataCtrl = [readCsv(x) for _,x in enumerate(csvs1Ctrl)]
-dataExp1 = [readCsv(x) for _,x in enumerate(csvs1Exp1)]
-dataExp2 = [readCsv(x) for _,x in enumerate(csvs1Exp2)]
-
-concCtrl = [readConcCsv(x) for _,x in enumerate(concCsvCtrl)]
-concExp1 = [readConcCsv(x) for _,x in enumerate(concCsvExp1)]
-concExp2 = [readConcCsv(x) for _,x in enumerate(concCsvExp2)]
-
-dC  = concCtrl+dataCtrl
-dE1 = concExp1+dataExp1
-dE2 = concExp2+dataExp2
-
-pNormMin = 0.05
-paramIdx = [0,8,9,11,12,13]
-
-paramTitles = ['CONCURRENCY','STANCE_AMPLITUDE', 'STANCE_DURATION', 'SWING_AMPLITUDE', 'SWING_DURATION', 'WALK_SPEED']
-
-
-allStats = []
-allStats.append(['Test and Parameter', 'p-Value', 'p-Value', 'p-Value'])
-allStats.append(['',ctrl+' vs. '+exp1, ctrl+' vs. '+exp2, exp1+' vs. '+exp2])
-
-
-
-
-plotTitles = ['Number of Tracks\nin 5 minutes',
-              'Duration of Tracks',
-              'Total Distance Travelled\nin 5 minutes',
-              'Average Speed',
-              'Path Straightness',
-              'Geotactic Index',
-              ]
-
-plotTitlesPerUT = ['Number of Tracks',
-              'Duration of Tracks',
-              'Total Distance Travelled',
-              'Average Speed',
-              'Path Straightness',
-              'Geotactic Index',
-              ]
-
-plotYLabels = ['Number of Tracks',
-                'duration of Tracks\n(s)',
-                'Distance Traveled\n'+r'(BLU x10$^3$)',
-                'Average Speed\n(BLU/S)',
-                'Path Straightness\n'+r'(R$^2$ Value)',
-                'Geotactic Index',
-                ]
-
-sWidth = 0.012
-sSize = 5
-sMarker = 'o'
-sAlpha = 0.6
-sLinewidth = 0.2
-sEdgCol = (0,0,0)
-sCol = (0,0,0)
-
-
-#vPlotPos = np.arange(len(genotypes))
 
 def plotScatter(axis, data, scatterX, swidth = sWidth, \
                 sradius = sSize , scolor = sCol,\
@@ -233,22 +241,29 @@ def plotScatter(axis, data, scatterX, swidth = sWidth, \
             alpha=salpha, linewidths=slineWidth, edgecolors=sedgeColor, zorder=zOrder )
 
 
-#---get the per unit time data ----
+ctrl = 'W1118_'
+exp1 = 'W1118xLrrk-ex1'
+exp2 = 'Park25xLrrk-ex1'
 
-def set_axis_style(ax, labels):
-    ax.get_xaxis().set_tick_params(direction='out')
-    ax.xaxis.set_ticks_position('bottom')
-    ax.set_xticks(np.arange(0, len(labels)+0))
-    ax.set_xticklabels(labels)
-    ax.set_xlim(-1, len(labels))
+dataSets = [ctrl,exp1,exp2]
+ 
+baseDir = '/media/aman/data/flyWalk_data/climbingData/gait/allData/copied/analyzed/'
 
+paramTitles = ['CONCURRENCY','STANCE_AMPLITUDE', 'STANCE_DURATION', 'SWING_AMPLITUDE', 'SWING_DURATION', 'WALK_SPEED']
+
+csvsCtrl = getFiles(baseDir, [ctrl+'*.csv'])
+csvsExp1 = getFiles(baseDir, [exp1+'*.csv'])
+csvsExp2 = getFiles(baseDir, [exp2+'*.csv'])
+
+pNormMin = 0.05
+paramIdx = [0,8,9,11,12,13]
 
 pltCols = 3
 pltRows = len(paramIdx)/pltCols
 figWidth = 1.4*5
 figHeight = figWidth/1.618
 fontSize = (8/7.0)*figWidth
-tightLayout = False
+tightLayout = True
 wSpace = 0.4
 hSpace = 0.15
 marginLeft = 0.05
@@ -262,6 +277,12 @@ showExtrema = False
 medianColor = 'Orange'
 vPlotLineShow = 'cmedians'
 
+sWidth = 0.12
+legendHorPos = -0.2
+legendVerPos = -0.1
+legendAxesRowSet = pltRows-1
+legendAxesColSet = (pltCols/2)+1
+step = len(dataSets)+1
 
 bwMethod = 'silverman'
 boxLineWidth = 0.5
@@ -271,128 +292,97 @@ capprops = dict(linestyle='--', linewidth=boxLineWidth)
 medianprops = dict(linestyle = None, linewidth=0)
 boxPro = dict(boxprops=boxprops, whiskerprops=whiskerprops, capprops=capprops)
 
-#
-#legendHorPos = 0.32
-#legendVerPos = 1.058
-#legendAxesRowSet = total5MinPlotIndex
-#legendAxesRowGet = tSeriesPlotIndex
-#legendAxesColSet = 4
-#legendAxesColGet = 4
-#
-#
-#nParamsToPlot = paramIdx
-#
-#
-#
-#ax00 = {'yticks': np.arange(nTrackPerMin+1) }
-##ax10 = {'yticks': np.arange(0,36,5), 'ylim':(0,36)}
-#ax10 = {'yticks': np.arange(0,nTrackPerMin*nUnitTimes,nUnitTimes), 'ylim':(0,nTrackPerMin*nUnitTimes+1)}
-#ax01 = {'yticks': np.arange(0, trackFPS*nSecsDurPerMin, 2*trackFPS) , 'yticklabels':  np.arange(0,nSecsDurPerMin,2), 'ylim':(0,trackFPS*nSecsDurPerMin)}
-#ax11 = {'yticks': np.arange(0, trackFPS*nSecsDurTotal, 2*trackFPS),'yticklabels':  np.arange(0,nSecsDurTotal,2), 'ylim':(0,trackFPS*nSecsDurTotal) }
-#ax02 = {'yticks': np.arange(0,disPerMin,distickStep), 'yticklabels': np.arange(disticks) }
-#ax12 = {'yticks': np.arange(0,disTotal,disTotalStep), 'yticklabels': np.arange(0,disTotalTicks,disTotalTicksStep), 'ylim':(0,disTotal) }
-#ax03 = {'yticks': np.arange(0,avSpeedVal,2)}
-#ax13 = {'yticks': np.arange(0,avSpeedVal,2)}
-#ax04 = {'ylim': (0, 1.1), 'yticks': [0, 0.5, 1]}
-#ax14 = {'ylim': (0, 1.5), 'yticks': [0, 0.5, 1]}
-#ax05 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
-#ax15 = {'ylim': (1.2, -1.5), 'yticks': [-1, 0, 1]}
-#axP = [
-#        [ax10, ax11, ax12, ax13, ax14, ax15],
-#        [ax00, ax01, ax02, ax03, ax04, ax05]
-#      ]
-#
-#
-#
-#
-#ptime = present_time()
-#figDir = baseDir+'../'
-#dpi = 300
-#
-#sMarkers  = ['o' for x in markers]
-#fig, ax = plt.subplots(pltRows,pltCols, figsize=(figWidth, figHeight), tight_layout = tightLayout)
-#fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
-#legendHandles, legendLabels = ax[legendAxesRowGet, legendAxesColGet].get_legend_handles_labels()
-#ax[legendAxesRowSet, legendAxesColSet].legend(handles=legendHandles,labels=legendLabels, bbox_to_anchor=(legendHorPos, legendVerPos), loc=2, shadow=True, edgecolor=(0,0,0), fontsize='x-small', ncol=1).draggable()
-#bPlots = []
-#vPlots = []
-#for i in xrange(0, nParamsToPlot):
-#    plotData = dataToPlot[i]
-#    vp = ax[total5MinPlotIndex, i].violinplot([da for da in plotData], vPlotPos+1, showmeans=showMeans, showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
-#    bp = ax[total5MinPlotIndex, i].boxplot([da for da in plotData], sym='', medianprops = medianprops, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
-#    for s,scatterPlotData in enumerate(plotData):
-#        plotScatter(ax[total5MinPlotIndex, i], scatterPlotData, scatterX = s+1, scatterMarker = sMarkers[s], scatterColor = genotypeMarker[s], zOrder=2)
-#    vPlots.append(vp)
-#    bPlots.append(bp)
-#for vplot in vPlots:
-#    vplot[vPlotLineShow].set_color(medianColor)
-#    for patch, color in zip(vplot['bodies'], colors):
-#        patch.set_color(color)
-#        patch.set_edgecolor(None)
-#        patch.set_alpha(vAlpha)
-#
-#for i in xrange(0, len(axP)):
-#    for j in xrange(0, nParamsToPlot):
-#        plt.setp([ax[i,j].spines[x].set_visible(False) for x in ['top','right']])
-#        plt.setp(ax[i,j].yaxis.grid(True, linestyle='-', which='major', color='lightgrey',alpha=0.5))
-#        plt.setp(ax[i, j].get_yticklabels(), rotation=90, horizontalalignment='center', verticalalignment='center')
-#        plt.setp(ax[i,j], ylabel = plotYLabels[j])
-#        plt.setp(ax[i,j], **axP[i][j])
-#        if i==tSeriesPlotIndex:
-#                plt.setp(ax[i,j], xticks = np.arange(0,nUnitTimes, tSeriesXtickStep), xticklabels = np.arange(1,nUnitTimes+1, tSeriesXtickStep), xlabel = 'minutes')
-#plt.setp([axs for axs in ax[total5MinPlotIndex, :]], xlim=[0,len(genotypes)+1], xticks = [0], xticklabels = [])
-#plt.savefig(combinedFigNamePng, dpi=dpi, format='png')
-#plt.savefig(combinedFigNameSvg, format='svg')
+paramTitles1 = [['CONCURRENCY', 'SWING_AMPLITUDE', 'STANCE_AMPLITUDE'], ['WALK_SPEED', 'SWING_DURATION', 'STANCE_DURATION']]
 
+genotypes = []
+colors = []
+markers = []
+for i, gt in enumerate(dataSets):
+    if gt in ('W1118_', 'w1118'):
+        genotypes.append(r'W$^1$$^1$$^1$$^8$')
+        colors.append((230/div,218/div,66/div,alfa))
+        markers.append('P')
+    elif gt in ('PARK25xLrrk-ex1', 'Park25xLrrk-ex1'):
+        genotypes.append(r'Park$^2$$^5$/Lrrk$^e$$^x$$^1$')
+        colors.append((86/div,180/div,233/div,alfa))
+        markers.append('s')
+    elif gt in ('W1118xLrrk-ex1', 'w1118xLrrk-ex1'):
+        genotypes.append(r'Lrrk$^e$$^x$$^1$/W$^1$$^1$$^1$$^8$')
+        colors.append((180/div,109/div,0/div,alfa))
+        markers.append('v')
+    else:
+        genotypes.append(gt)
+        colors.append(random.choice(colorsRandom))
+        markers.append('8')
+    print i, gt, len(colors), colors
 
-
-
-def toMatrix(l, n):
-    return [l[i:i+n] for i in xrange(0, len(l), n)]
-
-
-paramIdx = [0,8,9,11,12,13]
-paramTitles = ['CONCURRENCY','STANCE_AMPLITUDE', 'STANCE_DURATION', 'SWING_AMPLITUDE', 'SWING_DURATION', 'WALK_SPEED']
-
-plotParamIdx = toMatrix(paramIdx, pltCols)
-plotParamTitles = toMatrix(paramTitles, pltCols)
-
-sWidth = 0.12
-sSize = 5
-
-sSizes = [[3,0.1,1],[0.1,1,8]]
-sAlphas = [[0.5, 0.3, 0.1], [0.3, 0.1, 0.5]]
-
-
-fig, ax = plt.subplots(pltRows,pltCols, figsize=(figWidth, figHeight), tight_layout = tightLayout)
-bPlots = []
-vPlots = []
-step = 4#2*len(dataSets)
+fig, ax = plt.subplots(pltRows,pltCols, figsize=(figWidth, figHeight))#, tight_layout = tightLayout)
+fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top=marginTop, wspace = wSpace, hspace = hSpace)
+legendPatches = [mpatches.Patch(color=c, label=genotypes[i]) for i,c in enumerate(colors)]
+allStats = []
+concStats = []
 for i in xrange(pltRows):
     for j in xrange(pltCols):
-        n = plotParamIdx[i][j]
-        print '\n--------',plotParamTitles[i][j],'--------'
-        testData, xLabels = restrucDataForStats([dC[n],dE1[n],dE2[n]], dataSets)
+        param = paramTitles1[i][j]
+        if param=='CONCURRENCY':
+            getData = readConcCsv
+            csvOutFname = 'stats_conc.txt'
+            doStats = getConcStats
+            writeCsv = 1
+            restrucData  = restrucDataForRMA
+            statsList = concStats
+        else:
+            getData = readCsv
+            csvOutFname = 'stats_gait.csv'
+            doStats = getStats
+            writeCsv = 0
+            restrucData  = restrucDataForStats
+            statsList = allStats
+        dC = [getData(x) for _,x in enumerate(csvsCtrl) if param in x][0]
+        dEx1 = [getData(x) for _,x in enumerate(csvsExp1) if param in x][0]
+        dEx2 = [getData(x) for _,x in enumerate(csvsExp2) if param in x][0]
+        print '\n--------',param,'--------'
+        testData, lbls = restrucData([dC,dEx1,dEx2], dataSets)
+        statsList.append(doStats(testData, dataSets, param, lbls, pNormMin, verbose=False))
+        pltTitle = specs[param]['TITLE']
+        yLabel = specs[param]['YLABEL']
+        yLim = specs[param]['YLIMS']
+        xLabels = specs[param]['ENTITIES']
+        sSize = specs[param]['sSize']
+        sAlpha = specs[param]['sAlpha']
         for d in xrange(len(dataSets)):
             tData = [x[d] for _,x in enumerate(testData)]
             pos = np.arange(0, len(tData)*step, step)+d
-            print pos
             plotData = tData
             vp = ax[i][j].violinplot(plotData, positions = pos, showmeans=showMeans,\
-                                                        showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
-            bp = ax[i][j].boxplot(plotData, sym='', medianprops = medianprops,\
-                               positions = pos, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
+                                     showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
+            bp = ax[i][j].boxplot(plotData, sym='', medianprops = medianprops, labels =[genotypes[d] for x in plotData],\
+                                    positions = pos, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
             for s,scatterPlotData in enumerate(plotData):
                 plotScatter(ax[i][j], scatterPlotData, scatterX = d+(s*step),\
-                            swidth = sWidth, sradius = sSizes[i][j], salpha=sAlphas[i][j], zOrder=2)
-            ax[i][j].set_xlim(-1, pos[-1]+1)
-            ax[i][j].set_title(plotParamTitles[i][j])
+                            swidth = sWidth, sradius = sSize, salpha=sAlpha, zOrder=2)
+            vp[vPlotLineShow].set_color(medianColor)
+            for patch in vp['bodies']:
+                patch.set_color(colors[d])
+                patch.set_edgecolor(None)
+        ax[i][j].set_xlim(-1, pos[-1]+1)
+        ax[i][j].set_ylim(yLim)
+        ax[i][j].set_ylabel(yLabel)
+        ax[i][j].set_title(pltTitle)
         ax[i][j].set_xticks(np.arange(1,pos[-1], step))
         ax[i][j].set_xticklabels(xLabels)
-        print np.arange(1,pos[-1], step), xLabels
-        vPlots.append(vp)
-        bPlots.append(bp)
+        if writeCsv==1:
+            csvOutFile = baseDir+csvOutFname
+            with open(csvOutFile, "wb") as f:
+                writer = csv.writer(f)
+                writer.writerows(statsList)
+csvOutFile = baseDir+csvOutFname
+with open(csvOutFile, "wb") as f:
+    writer = csv.writer(f)
+    for _,row in enumerate(allStats):
+        writer.writerows(row)
 
+ax[legendAxesRowSet,legendAxesColSet].legend(handles=legendPatches,bbox_to_anchor=(legendHorPos, legendVerPos), ncol=3).draggable()
 plt.show()
 
 
@@ -401,110 +391,6 @@ plt.show()
 
 
 
-n=0
-testData = restrucDataForStats([dC[n],dE1[n],dE2[n]], dataSets)
-for d in xrange(len(dataSets)):
-    tData = [x[d] for _,x in enumerate(testData)]
-    pos = np.arange(0, len(tData)*len(dataSets),len(dataSets) )+d
-    print pos
-    plotData = tData
-    vp = plt.violinplot(plotData, positions = pos, showmeans=showMeans,\
-                                                showmedians=showMedians, showextrema=showExtrema, bw_method=bwMethod)
-    bp = plt.boxplot(plotData, sym='', medianprops = medianprops,\
-                       positions = pos, boxprops = boxprops, whiskerprops = whiskerprops, capprops = capprops, zorder=1)
-    for s,scatterPlotData in enumerate(plotData):
-        plotScatter(plt, scatterPlotData, scatterX = d+(s*len(dataSets)), scatterMarker = 'o',\
-                    scatterColor = (0,0,0), zOrder=2)
-plt.xlim(-1, pos[-1]+2)
-plt.show()
-
-#        label = '---'+paramTitles[p]+'_'+dC[n][0][i]+'---'
-#        print label
-#        normP = []
-#        for j in xrange(len(testData[i])):
-#            _, pValue = stats.normaltest(testData[i][j])
-#            normP.append(pValue)
-#        if min(normP)<pNormMin:
-#            testUsed = 'Kruskal-Wallis test'
-#            _, statsP = stats.kruskal(*testData[i])
-#            print testUsed+' pValue:', statsP,'---'
-#            multiCompP = getKWmultiComp(testData[i], dataSets, verbose=False)
-#        else:
-#            testUsed = 'One Way ANOVA'
-#            _, statsP = stats.f_oneway(*testData[i])
-#            print testUsed+' pValue:', statsP
-#            multiCompP = list(getOWANOVAmultiComp(testData[i], dataSets, verbose=False))
-#        allStats.append([label])
-#        allStats.append(['normalityTestStats']+normP)
-#        allStats.append([testUsed,statsP])
-#        allStats.append(['MultipleComparisons p-Value']+multiCompP)
-#        allStats.append([])
-
-
-#for p,n in enumerate(paramIdx):
-#    print '\n--------',paramTitles[p],'--------'
-#    testData = restrucDataForStats([dC[n],dE1[n],dE2[n]], dataSets)
-#    for i in xrange(len(testData)):
-#        label = '---'+paramTitles[p]+'_'+dC[n][0][i]+'---'
-#        print label
-#        normP = []
-#        for j in xrange(len(testData[i])):
-#            _, pValue = stats.normaltest(testData[i][j])
-#            normP.append(pValue)
-#        if min(normP)<pNormMin:
-#            testUsed = 'Kruskal-Wallis test'
-#            _, statsP = stats.kruskal(*testData[i])
-#            print testUsed+' pValue:', statsP,'---'
-#            multiCompP = getKWmultiComp(testData[i], dataSets, verbose=False)
-#        else:
-#            testUsed = 'One Way ANOVA'
-#            _, statsP = stats.f_oneway(*testData[i])
-#            print testUsed+' pValue:', statsP
-#            multiCompP = list(getOWANOVAmultiComp(testData[i], dataSets, verbose=False))
-#        allStats.append([label])
-#        allStats.append(['normalityTestStats']+normP)
-#        allStats.append([testUsed,statsP])
-#        allStats.append(['MultipleComparisons p-Value']+multiCompP)
-#        allStats.append([])
-#
-#
-#csvOutFile = baseDir+'stats_gait.csv'
-#with open(csvOutFile, "wb") as f:
-#    writer = csv.writer(f)
-#    writer.writerows(allStats)
-#
-#
-#
-#
-#concData = [concCtrl[0], concExp1[0], concExp2[0]]
-#concRestrucData = restrucDataForRMA(concData, dataSets)
-#
-#def getRMAnova(dataSet, labels, verbose=False):
-#    tlabels = np.concatenate([[labels[j] for _,y in enumerate(x) ]for j,x in enumerate(dataSet)])
-#    concatData = np.concatenate(dataSet)
-#    ids = np.concatenate([np.arange(len(x)) for _,x in enumerate(dataSet)])
-#    d = {'id':ids, 'rt':concatData, 'cond':tlabels}
-#    df = pd.DataFrame(d)
-#    anovarm = AnovaRM(df, 'rt', 'id', within=['cond'])
-#    res = anovarm.fit()
-#    if verbose:
-#        print (res.summary())
-#    return res
-#
-#
-#rmAnovaStats = [['Repeated Measures ANOVA for Concurrency states (S0, S1, S2, S3)']]
-#for i,x in enumerate(concRestrucData):
-#    rma = getRMAnova(x, dataSets, True)
-#    rmAnovaStats.append([rma.anova_table])
-#    rmAnovaStats.append([rma.summary()])
-#
-#
-#rmAnovaStats
-#csvOutFile = baseDir+'stats_conc.txt'
-#with open(csvOutFile, "wb") as f:
-#    writer = csv.writer(f)
-#    writer.writerows(rmAnovaStats)
-#
 
 
 
@@ -512,6 +398,13 @@ plt.show()
 
 
 
- 
+
+
+
+
+
+
+
+
 
 
