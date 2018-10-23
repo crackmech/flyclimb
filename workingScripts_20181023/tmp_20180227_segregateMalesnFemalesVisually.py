@@ -44,7 +44,7 @@ def getFolder(initialDir):
     root.destroy()
     return initialDir+'/'
 
-baseDir = '/media/pointgrey/data/flywalk/climbingData/'
+baseDir = '/media/pointgrey/data/flywalk/'
 
 baseDir = getFolder(baseDir)
 print baseDir

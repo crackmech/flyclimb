@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on Wed Dec 27 18:27:38 2017
@@ -18,6 +19,7 @@ import matplotlib.pyplot as plt
 import time
 import glob
 import random
+import multiprocessing as mp
 
 def natural_sort(l): 
     convert = lambda text: int(text) if text.isdigit() else text.lower() 
@@ -82,13 +84,17 @@ def getFlyStats(folderName,
     start_time = time.time()
     for fnum in xrange(len(flist)):
         ims.append(cv2.imread(flist[fnum], cv2.IMREAD_GRAYSCALE))
-    for fnum in xrange(len(flist)):
+    for fnum in xrange(0,len(flist)):
         ctrs = []
         im = cv2.medianBlur(ims[fnum],blurkernel)
         th = cv2.adaptiveThreshold(im,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
                 cv2.THRESH_BINARY,blk,cutOff)
-        im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
         contours = sorted(contours, key = cv2.contourArea)[-10:]
+#        [cv2.drawContours(im, cnt, -1, color ,-1) for cnt, color in zip(contours, colors)]
+#        cv2.imshow('123',im);
+#        cv2.imshow('th',th);
+#        cv2.waitKey(1)
         ellRatio = [(float(cv2.fitEllipse(cnt)[1][0])/cv2.fitEllipse(cnt)[1][1], cv2.contourArea(cnt), cnt) for cnt in contours ]
         for cnt in ellRatio:
             if ellaxisRatioMin<cnt[0]<ellaxisRatioMax and flyareaMin<cnt[1]<flyareaMax:
@@ -120,7 +126,7 @@ def getFlyStats(folderName,
     medianSize = round(np.median(np.array(areas))*pxSize, rounded)
     medianMinorAxis = round(np.median(np.array(minorAxis))*pxSize, rounded)
     medianMajorAxis = round(np.median(np.array(majorAxis))*pxSize, rounded)
-    print('Done %i frames in %f seconds (%s, %0.4fFPS)'%(len(flist), (time.time()-start_time), present_time(), (len(flist)/(time.time()-start_time))))
+    print('Done %i frames in %f seconds (%s, %0.4fFPS)\nfrom %s'%(len(flist), (time.time()-start_time), present_time(), (len(flist)/(time.time()-start_time)), folderName))
     return averageSize, averageMinorAxis, averageMajorAxis, medianSize, medianMinorAxis, medianMajorAxis, len(flist)
 
 
@@ -175,17 +181,19 @@ def processRawDirs(rawDir):
 #    stats.write('\n'+endString+' for: %s'%processTime)
 #    stats.close()
 
+#baseDir = '/media/aman/data/flyWalk_data/'
+baseDir = '/media/pointgrey/data/flywalk/'
 
-dirname = 'tmp/20170512_235710/'
-dirname = '/media/aman/data/transfer/flyWalk_data/LegPainting/glassChamber/20171114_014418_CS_20171108-09_2330_3-Walking/imageData/20171114_015023_tracked/0_original/'
+baseDir = '/media/flywalk/data/imaging/'
 
-baseDir = '/media/aman/data/flyWalk_data/'
-folder =  '20171117_173821_CS_201711113-14_0100_3-Walking/'
+try:
+    baseDir = sys.argv[1]
+except:
+    baseDir = '/media/pointgrey/data/flywalk/'
+    baseDir = getFolder(baseDir)
+    pass
 
-
-dirname = baseDir+folder+'imageData/'
-
-dirname = getFolder(dirname)+'0_original/'
+print baseDir
 verbose = False
 fileExt = '.png'
 decPoint = 5
@@ -194,8 +202,15 @@ decPoint = 5
 blurKernel = 5
 block = 221
 cutoff = 35
+#--- climbing centroid tracking thresholds---
 flyAreaMin = 100
 flyAreaMax = 4000
+#--- climbing centroid tracking thresholds---
+
+#--- climbing leg tracking thresholds---
+flyAreaMin = 1000
+flyAreaMax = 6000
+#--- climbing leg tracking thresholds---
 
 ellAxisRatioMin = 0.2
 ellAxisRatioMax = 0.5
@@ -217,7 +232,6 @@ walkParams = {
                 }
 
 
-baseDir = '/media/aman/data/flyWalk_data/'
 
 headers = ['area_average(mm^2)', 'minorAxis_average(mm)', 'majorAxis_average(mm)',\
             'area_median(mm^2)', 'minorAxis_median(mm)', 'majorAxis_median(mm)' ,\
@@ -246,11 +260,20 @@ endString = spacer+'Done Processing'
 rawdirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
 
 
+pool = mp.Pool(processes=8)
 
 print "Started processing directories at "+present_time()
-for rawDir in rawdirs:
+#for rawDir in rawdirs:
 #    processRawDirs(rawDir)
-    startNT(processRawDirs, (rawDir,))
+##    startNT(processRawDirs, (rawDir,))
+_ = [pool.map(processRawDirs, (rawDir,)) for rawDir in rawdirs]
+
+#_ = [pool.apply_async(processRawDirs, (rawDir,)) for rawDir in rawdirs]
+
+#print "Started processing directories at "+present_time()
+#for rawDir in rawdirs:
+#    processRawDirs(rawDir)
+#    startNT(processRawDirs, (rawDir,))
     
 
 

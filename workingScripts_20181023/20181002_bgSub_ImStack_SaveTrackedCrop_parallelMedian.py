@@ -138,7 +138,7 @@ def getContours((idx, im, contourParams, blurParams)):
     th = cv2.bitwise_not(th)
     ver = (cv2.__version__).split('.')
     if int(ver[0]) < 3 :
-        im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+        contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     else : 
         im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     try:
@@ -295,18 +295,27 @@ def getSubIms(dirname, imExts, pool, workers):
     startTime = time.time()
     imgStack = np.array(pool.map(imRead, flist), dtype=np.uint8)
     t1 = time.time()-startTime
-    print("imRead time for %d frames: %s Seconds at %f FPS"%(len(flist),t1 ,len(flist)/float(t1)))
+    print("imRead time for %d frames: %s Seconds at %f FPS\n"%(len(flist),t1 ,len(flist)/float(t1)))
     t1 = time.time()
     imStackChunks = np.array_split(imgStack, 4*workers, axis=1)
     imStackChunks = [x.copy() for x in imStackChunks if x.size > 0]
     bgImChunks = pool.map(getBgIm, imStackChunks)
     bgIm = np.array(np.vstack((bgImChunks)), dtype=np.uint8)
     t2 = time.time()-t1
-    print("bg calculation time for %d frames: %s Seconds at %f FPS"%(len(flist),t2 ,len(flist)/float(t2)))
+    print("parallel bg calculation time for %d frames: %s Seconds at %f FPS\n"%(len(flist),t2 ,len(flist)/float(t2)))
     t2 = time.time()
+    bgIm1 = bgIm
+    diffIm = cv2.absdiff(bgIm1, bgIm)
+    print ('max value of diff b/w parallel subIm and normal subIm %d'%np.max(diffIm))
+    t3 = time.time()
     subIms = np.array(pool.map(getBgSubIm, itertools.izip(imgStack, itertools.repeat(bgIm))), dtype=np.uint8)
-    t = time.time()-t2
-    print("bg Subtraction time for %d frames: %s Seconds at %f FPS"%(len(flist),t ,len(flist)/float(t)))
+    t = time.time()-t3
+    print("bg Subtraction time for %d frames: %s Seconds at %f FPS\n"%(len(flist),t ,len(flist)/float(t)))
+    t = time.time()-t1
+    print("imRead and bgSub time for %d frames: %s Seconds at %f FPS\n"%(len(flist),t ,len(flist)/float(t)))
+    cv2.imshow('bgDiff', diffIm)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
     return imgStack, subIms, flist
 
 def getEuDisCenter((x1,y1)):
@@ -338,8 +347,6 @@ def tracknCrop(dirname, imgExt, heightcrop, widthcrop, contourParams, outFname, 
     else:
         imgs, subImgs, flist = getSubIms(dirname, imgExt, pool, workers)
         startTime1 = time.time()
-#        trackedData = getTrackData(imStack = subImgs, Blobparams = params, blurParams=blurParams)
-#        blobXYs = trackedData
         trackedData = getContourData(imStack = subImgs, fList = flist, contourParams= contourParams, blurParams=blurParams, pool=pool)
         print trackedData[1], '\n',trackedData[0][1][0]
         blobXYs = [x[1][0] for _,x in enumerate(trackedData)]
@@ -350,26 +357,25 @@ def tracknCrop(dirname, imgExt, heightcrop, widthcrop, contourParams, outFname, 
         cropImStack = cropImstackGray(imStack = imgs, trackData = blobXYs, heightCropbox = heightcrop, widthCropbox = widthcrop)
         startTime4 = time.time()
         print('Cropped Images in: %0.3f seconds, now saving'%(startTime4-startTime3))
-        startTime5 = time.time()
-        print('Saved Images in: %0.3f seconds'%(startTime5-startTime4))
 #        fname = dirname.rstrip('/')+"_trackData_"
-        with open(outFname+".csv", "wb") as f:
-            writer = csv.writer(f)
-            writer.writerow(['frame','((X-Coord, Y-Coord), (minorAxis, majorAxis), angle)'])
-            writer.writerows(trackedData)
+#        with open(outFname+".csv", "wb") as f:
+#            writer = csv.writer(f)
+#            writer.writerow(['frame','((X-Coord, Y-Coord), (minorAxis, majorAxis), angle)'])
+#            writer.writerows(trackedData)
         #np.savetxt(fname+".csv",trackedData, fmt='%.3f', delimiter = ',', header = 'X-Coordinate, Y-Coordinate')
+        totTime = time.time()
         print('Processed %i Images in %0.3f seconds\nAverage total processing speed: %05f FPS'\
-        %(len(flist), startTime5-startTime1, (len(flist)/(time.time()-startTime1)))) 
+        %(len(flist), totTime, (len(flist)/totTime))) 
         return cropImStack, cropSubImStack, flist
 
-def getLegTipLocs(rawDir, trackParams, legContourThresh, outFname, pool):
+def getLegTipLocs(rawDir, trackParams, legContourThresh, outFname, pool, workers):
     
     imExts, height, width, cntparams, \
     flyparams, nImThresh, blurParams, ratTailparams = trackParams
     croppedImStack, croppedSubImStack, fList = tracknCrop(rawDir, imExts, height,\
                                                    width, cntparams, outFname, flyparams,\
                                                    nImThresh, blurParams, ratTailparams,\
-                                                   pool)
+                                                   pool, workers)
     croppedSubIms = []
     croppedIms = []
     for i in xrange(len(croppedSubImStack)):
@@ -380,7 +386,11 @@ def getLegTipLocs(rawDir, trackParams, legContourThresh, outFname, pool):
     croppedSubIms = np.array(croppedSubIms, dtype=np.uint8)
     allLocs = []
     for i, im in enumerate(croppedSubIms):
-        _, contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        ver = (cv2.__version__).split('.')
+        if int(ver[0]) < 3 :
+            contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        else:
+            _, contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         contours = [x for x in sorted(contours, key = cv2.contourArea)[-6:] if cv2.contourArea(x)>=legContourThresh]
         locs = []
         for j,cnt in enumerate(contours):
@@ -454,7 +464,7 @@ def assignLegTips(tipLocs, pxMvmntThresh, frmSkipThresh, saveFileName, crpImStac
         locs = tipLocs[i]
         for j,loc in enumerate(locs):
             cv2.circle(img, tuple(loc), 2, colors[trackedIds[i][j]], 2)
-            cv2.putText(img, str(trackedIds[i][j]), tuple(loc), cv2.FONT_HERSHEY_COMPLEX, 0.4, colors[trackedIds[i][j]])
+            cv2.putText(img, str(trackedIds[i][j]), tuple(loc), cv2.FONT_HERSHEY_COMPLEX, 0.4, (255,255,255))
         dispIms.append(img)
     return trackedIds, dispIms
 
@@ -510,91 +520,15 @@ for _,rawDir in enumerate(rawDirs):
         nFrames = len(getFiles(imdir, imExtensions))
         fname = imdir.rstrip(os.sep)+'_legTips-Climbing_allPts_'
         legTipLocs = getAllLocs(imdir, trackparams, legCntThresh, fname, pool, nThreads)
-        allLocs, croppedIms = legTipLocs
-        LegTipsAssigned, \
-        trackedCrpImStack = assignLegTips(tipLocs = allLocs, pxMvmntThresh = pxMvdByLegBwFrm,\
-                                         frmSkipThresh = legTipFrmSkipthresh,saveFileName = fname, \
-                                         crpImStack = croppedIms)
-        #displayImgs(trackedCrpImStack,50)
-        vidObj = cv2.VideoWriter(fname+'.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (2*widthCrop,2*heightCrop))
-        for _, im in enumerate(trackedCrpImStack):
-            vidObj.write(im)
-        vidObj.release()
         print('Processed %i frames in %0.3f seconds\nAverage total processing speed: %05f FPS'\
         %(nFrames, time.time()-startTime, (nFrames/(time.time()-startTime)))) 
         totalNFrames +=nFrames
-
 pool.close()
 totSecs = time.time()-procStartTime
 print('Processing finished at: %05s, in $sSeconds, total processing speed: %05f FPS'\
       %(present_time(),totSecs , totalNFrames/totSecs))
 
 
-#legTipLocs = getLegTipLocs(baseDir, trackparams, legCntThresh)
-#allLocs, croppedIms = legTipLocs
-#fname = baseDir.rstrip(os.sep)+'_legTips-Climbing_'
-#LegTipsAssigned, \
-#trackedCrpImStack = assignLegTips(tipLocs = allLocs, pxMvmntThresh = pxMvdByLegBwFrm,\
-#                                 frmSkipThresh = legTipFrmSkipthresh,saveFileName = fname, \
-#                                 crpImStack = croppedIms)
-##displayImgs(trackedCrpImStack,50)
-#vidObj = cv2.VideoWriter(fname+'.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (2*widthCrop,2*heightCrop))
-#
-#for _, im in enumerate(trackedCrpImStack):
-#    vidObj.write(im)
-#vidObj.release()
-
-
-
-#t = tp.link_iter(allLocs, search_range = 50, memory=41)    #iterator of locations, distance moved between frames, memory of skipped frame
-#ts = []
-##tp.logger.propagate = False
-#for idx,x in enumerate(t):
-#    ts.append(x[1])
-#
-#legTips = [['frame#','x','y','trackId']]
-#for i,loc in enumerate(allLocs):
-#    for j,l in enumerate(loc):
-#        legTips.append([i, l[0], l[1],ts[i][j]])
-#
-#fname = baseDir.rstrip(os.sep)+'_legTips'
-#csvOutFile = fname+'.csv'
-#with open(csvOutFile, "wb") as f:
-#    writer = csv.writer(f)
-#    writer.writerows(legTips)
-#
-#legTipsFr = [['frame#',\
-#              'x','y','trackId',\
-#              'x','y','trackId',\
-#              'x','y','trackId',\
-#              'x','y','trackId',\
-#              'x','y','trackId',\
-#              'x','y','trackId']]
-#for i,loc in enumerate(allLocs):
-#    frLocs = [i]
-#    for j,l in enumerate(loc):
-#        frLocs.extend((l[0], l[1],ts[i][j]))
-#    legTipsFr.append(frLocs)
-#csvOutFile = fname+'Fr.csv'
-#with open(csvOutFile, "wb") as f:
-#    writer = csv.writer(f)
-#    writer.writerows(legTipsFr)
-#
-#dispIms = []
-#for i, im in enumerate(croppedIms):
-#    img = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
-#    locs = allLocs[i]
-#    for j,loc in enumerate(locs):
-#        cv2.circle(img, tuple(loc), 2, colors[ts[i][j]], 2)
-#    dispIms.append(img)
-#
-#displayImgs(dispIms,50)
-#
-#vidObj = cv2.VideoWriter(fname+'.avi',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (2*widthCrop,2*heightCrop))
-#
-#for _, im in enumerate(dispIms):
-#    vidObj.write(im)
-#vidObj.release()
 
 
 
@@ -602,93 +536,12 @@ print('Processing finished at: %05s, in $sSeconds, total processing speed: %05f 
 
 
 
-'''
 
 
 
 
-#croppedImStack, croppedSubImStack = tracknCrop(baseDir, imExtensions, '.png', heightCrop, widthCrop, \
-#                                               cntParams, flyParams, nImThreshold, gauBlurParams, rattailparams, nThreads)
-#croppedSubIms = []
-#croppedIms = []
-#for i in xrange(len(croppedSubImStack)):
-#    if 'NoCroppedImage' not in croppedSubImStack[i][1]:
-#        croppedSubIms.append(croppedSubImStack[i][1])
-#        croppedIms.append(croppedImStack[i][1])
-#croppedIms = np.array(croppedIms, dtype=np.uint8)
-#croppedSubIms = np.array(croppedSubIms, dtype=np.uint8)
-##displayImgs(croppedIms, 100)
-##displayImgs(croppedSubIms, 100)
-#
-#
-#
-#allLocs = []
-#for i, im in enumerate(croppedSubIms):
-#    _, contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-#    contours = [x for x in sorted(contours, key = cv2.contourArea)[-6:] if cv2.contourArea(x)>=cntThresh]
-#    locs = []
-#    for j,cnt in enumerate(contours):
-#        locs.append(getFarPoint(cnt)[-1])
-#    allLocs.append(np.array(sorted([x for x in locs], key=getEuDisCorner)))
 
 
-
-dispIms2 = []
-for i, im in enumerate(croppedIms):
-    img = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
-    locs = allLocs[i]
-    for j,loc in enumerate(locs):
-        cv2.circle(img, loc, 2, colors[j], 2)
-    dispIms2.append(img)
-
-displayImgs(dispIms2,20)
-
-trackIm = np.zeros((img.shape), dtype=np.uint8)
-for i, im in enumerate(croppedIms):
-    locs = allLocs[i]
-    for j,loc in enumerate(locs):
-        cv2.circle(trackIm, loc, 1, colors[1], 1)
-cv2.imshow('tmp', trackIm)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
-
-trackIms = np.zeros((len(croppedIms),img.shape[0], img.shape[1], img.shape[2]), dtype=np.uint8)
-for i, im in enumerate(croppedIms):
-    locs = allLocs[i]
-    for j,loc in enumerate(locs):
-        cv2.circle(trackIms[i], loc, 1, (255,255,255), 2)
-displayImgs(trackIms,200)
-
-
-for idx,im in enumerate(trackIms):
-    cv2.imwrite(outDir+str(idx)+'.png', im)
-cv2.imshow('tmp', trackIm)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
-
-'''
-
-
-
-
-#rawdirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
-#
-#print "Started processing directories at "+present_time()
-#for rawDir in rawdirs:
-##    print "----------Processing directoy: "+os.path.join(baseDir,rawDir)+'--------'
-#    d = os.path.join(baseDir, rawDir, imgDatafolder)
-#    print rawDir
-#    if 'Walking' in rawDir:
-#        minArea = 1000# 200 for flyClimbing, 1000 for fly walking
-#    elif 'Climbing' in rawDir:
-#        minArea = 200# 200 for flyClimbing, 1000 for fly walking
-#    params.minArea = minArea# 200 for flyClimbing, 1000 for fly walking
-#    imdirs = natural_sort([ os.path.join(d, name) for name in os.listdir(d) if os.path.isdir(os.path.join(d, name)) ])
-#    for imdir in imdirs:
-#        dirs = os.path.join(d,imdir)
-#        t = tracknCrop(os.path.join(d,imdir), '.png', params, nImThreshold)
 
 
 
