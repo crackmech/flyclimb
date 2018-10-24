@@ -533,6 +533,7 @@ colors_ = [(0/div,0/div,0/div,alfa),#gray
              ]
 
 markers = ['^','s','v','d','o', 'P']
+colors = [(230/div,218/div,66/div,alfa),(0/div,114/div,178/div,alfa)]   # for 30 minutes, KCNJ10 data
 
 #---------declare the proper genotypes, markers and colors for the genotypes!!!!------------
 genotypes = []
