@@ -261,19 +261,21 @@ skpdFrThresh = 10   # number of frames that can be skipped in a contgous track
 
 baseDir = '/media/aman/data/flyWalk_data/climbingData/'
 baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/tmp_20171201_195931_CS_20171128_0245_11-Climbing_male/imageData/'
-fname = baseDir+'20171201_200107_contoursStats_Otsu_tmp_20171201_195931_CS_20171128_0245_11-Climbing_male.csv'
+csvName = '20171201_200012_contoursStats_Otsu_tmp_20171201_195931_CS_20171128_0245_11-Climbing_male.csv'
+csvName = '20171201_200101_contoursStats_Otsu_tmp_20171201_195931_CS_20171128_0245_11-Climbing_male.csv'
+#csvName = '20171201_200107_contoursStats_Otsu_tmp_20171201_195931_CS_20171128_0245_11-Climbing_male.csv'
+fname = baseDir+csvName
 #baseDir = getFolder(baseDir)
 
 csvData = readCsv(fname)
 
 centroids = np.array([x[1:3] for i,x in enumerate(csvData) if i>0], dtype=np.float64)
+
 '''
 get contigous data!!!
 keep threshold for minimum number of frames, distance
 Use max skipped frames
 use kalman or intermediate points function to fix data for skipped frames
-
-
 '''
 
 def getContigTrack(xyArray, skipFrames):
@@ -298,5 +300,88 @@ def getContigTrack(xyArray, skipFrames):
     nTracks.append([trackStart, f])
     return nTracks
 
-aa = getContigTrack(centroids, 10)
+aa = getContigTrack(centroids, skpdFrThresh)
+
+
+def getTrackBreaksPts(xyArray):
+    '''
+    returns the breakpoints in the XYarray of the centroids of the fly (determined by the '0' in the array)
+    '''
+    trackStop = 0
+    nTracks = []
+    for f,x in enumerate(xyArray):
+        if x[0]==0 and x[1]==0:
+            if trackStop == 0:
+                trackStop = f
+                nTracks.append([trackStop])
+        else:
+            if trackStop != 0:
+                nTracks[-1].extend([f])
+                trackStop = 0
+    if trackStop != 0:
+        nTracks[-1].extend([f])
+    return nTracks
+
+
+
+brkPts = getTrackBreaksPts(centroids)
+cnts = centroids.copy()
+fillBrkPts = []
+splitTracks = []
+
+trackStart = 0
+for i,x in enumerate(brkPts):
+    if len(x)>1:
+        trackBrkLen = x[1] - x[0]
+        print trackBrkLen, x
+        if trackBrkLen >= skpdFrThresh:
+            splitTracks.append([trackStart, x[0]])
+            trackStart = x[1]
+        else:
+            cnts[x[0]:x[1],:] = intermediates(centroids[x[0]-1,:], centroids[x[1],:], trackBrkLen)
+if (x[0] - trackStart)>=skpdFrThresh:
+    splitTracks.append([trackStart, x[0]])
+
+print splitTracks
+
+brkPtsFilled = getTrackBreaksPts(cnts)
+
+
+"""
+For each track find:
+    1)  track time point (separated by _0, _1 for the same time point)
+    2)  track duration
+    3)  track length
+    4)  Average speed
+    5)  Median speed
+    6)  Std Dev speed
+    7)  Average body angle
+    8)  Median body angle
+    9)  Std dev body angle
+    10) Path Straightness
+    11) Geotactic Index
+    12) Stopping time difference
+    13) dist travelled threshold
+    14) Track stop Time threshold
+    15) track distance threshold
+    16) Bin size for calculating distance
+    17) Average body angle
+    18) Median body angle
+    19) Std dev body angle
+    20) FPS
+
+"""
+
+
+
+
+
+
+
+
+
+
+
+
+
 
