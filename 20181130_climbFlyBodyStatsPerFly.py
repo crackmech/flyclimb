@@ -132,10 +132,13 @@ def getFPS(csvname, logFilePath, FPSsep, FPSIndex):
     folder = ('_').join([csvdetails[0],csvdetails[1]])
     with open(logFilePath) as f:
         lines = f.readlines()
+    fpsValues = []
     for line in lines:
         if all(x in line for x in [folder, 'FPS']):
-            return line.split(FPSsep)[FPSIndex]
-
+            fpsValues.append(line.split(FPSsep))
+    fpsFrames = [x[FPSIndex-2] for x in fpsValues] # get all lines with required imFolder
+    #return the fps from the camloop line with highest number of frames
+    return fpsValues[fpsFrames.index(max(fpsFrames))][FPSIndex] 
 
 def getTrackDirection(trackData, minDis):
     '''
@@ -308,7 +311,7 @@ def extrapolateTrack(xyArray, breakPoints, skippedFrThresh, verbose=True):
     trackStart = 0
     arrCopy = xyArray.copy()
     for i,x in enumerate(breakPoints):
-        if len(x)>1:
+        if len(x)>1 and diff(x)>1:
             trackBrkLen =diff(x)
             if verbose:
                 print trackBrkLen, x
@@ -356,14 +359,17 @@ threshTrackDur = 50     # threshold of track duration, in number of frames
 threshTrackLen = 1      # in BLU
 #---- declared all the hyperparameters above ----#
 
-baseDir = '/media/aman/data/flyWalk_data/climbingData/'
-#baseDir = getFolder(baseDir)
-baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/tmp_20171201_195931_CS_20171128_0245_11-Climbing_male/imageData/'
+#baseDir = '/media/aman/data/flyWalk_data/climbingData/'
+#baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/tmp_20171201_195931_CS_20171128_0245_11-Climbing_male/imageData/'
 baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
 csvExt = ['*contoursStats_tmp*.csv']
+baseDir = '/media/pointgrey/data/flywalk/'
+csvExt = ['*contoursStats_threshBinary_*.csv']
+baseDir = getFolder(baseDir)
 
 dirs = getDirList(baseDir)
 for _,rawDir in enumerate(dirs):
+    print rawDir
     csvDir = os.path.join(rawDir, imDataFolder)
     fList = getFiles(csvDir, csvExt)
     
@@ -375,7 +381,10 @@ for _,rawDir in enumerate(dirs):
         csvDetails = csvName.split('_')
         trackStartDate = csvDetails[0]
         trackStartTime = csvDetails[1]
-        fps = float(getFPS(csvName, os.path.join(rawDir, 'camloop.txt'), fpsSep, fpsIndex))
+        try:
+            fps = float(getFPS(csvName, os.path.join(rawDir, 'camloop.txt'), fpsSep, fpsIndex))
+        except:
+            fps = 250.0
         skpdFramesThresh = mvmntStopThresh*fps
         trackDetails = ('_').join([csvDetails[0],csvDetails[1]])
         trackTime = datetime.strptime(trackDetails, '%Y%m%d_%H%M%S')
@@ -395,7 +404,8 @@ for _,rawDir in enumerate(dirs):
             if brkPts!=[]:
                 contigTracks, cnts_ = extrapolateTrack(centroids, brkPts, skpdFramesThresh, verbose=False)
             else:
-                contigTracks = centroids
+                print 'no track to split, full length track present'
+                contigTracks = [[0, len(centroids)]]
             trackLengths = [diff(x) for _,x in enumerate(contigTracks)]
             thresholdedTracksDur = [x for _,x in enumerate(trackLengths) if x>threshTrackDur]
             threshTrackFrNum = [contigTracks[trackLengths.index(x)] for _,x in enumerate(thresholdedTracksDur)]
@@ -429,7 +439,7 @@ for _,rawDir in enumerate(dirs):
                                         fps, binSize, pxSize,
                                         skpdFramesThresh, threshTrackDur,
                                         ])
-                print iF,i, trackStopDelT, trk
+                #print iF,i, trackStopDelT, trk
                 trackNumber+=1
     outCsvName = os.path.join(rawDir,'trackStats_'+rawDir.split(os.sep)[-1]+'.csv')
     with open(outCsvName, 'wb') as csvfile: 
