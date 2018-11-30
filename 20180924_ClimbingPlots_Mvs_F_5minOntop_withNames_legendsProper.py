@@ -20,6 +20,12 @@ Created on Tue Mar  6 14:25:20 2018
 
 @author: aman
 """
+maxTimeThresh   = 300 # time in seconds for calculation of data from tracks under this much seconds
+markerSize = 4.0       #4.0 for 5 minutes, 18 for 30 minutes
+lineWidth = 0.95           #0.95 for 5 minutes plot
+sWidth = 0.15           #0.012
+sSize = 5              #5 for 5 minutes, 300 for 30 minutes
+
 import numpy as np
 disPerMin       = 4000
 disTotal        = 20000
@@ -27,10 +33,10 @@ csTotalTracks   = 21
 #----------- Set Values for setting X-Y limits on the plots -------
 nTrackPerMin    = 6
 nTrackTotal     = 35
-nSecsDurPerMin  = 7
+nSecsDurPerMin  = 11
 nSecsDurTotal   = 13
-avSpeedPerMin   = 7
-avSpeedTotal    = 8
+avSpeedPerMin   = 7 #7 for others, 5 for KCNJ10
+avSpeedTotal    = 8 #8 for others, 4 for KCNJ10
 disTotal        = 23000
 
 #--- for CS, fig 2 -------
@@ -67,13 +73,11 @@ disTotal        = 23000
 #disTotal        = 23000
 
 
-maxTimeThresh   = 300 # time for calculation of data from tracks under this much seconds
-
 
 
 unitTime = 60
 nUnitTimes = maxTimeThresh/unitTime
-figWidth = 1.4*nUnitTimes
+figWidth = 1.6*nUnitTimes
 figHeight = figWidth/1.618
 fontSize = (8/7.0)*figWidth
 
@@ -177,12 +181,8 @@ marginLeft = 0.05
 marginRight = 0.99
 marginTop = 0.97
 marginBottom = 0.082
-markerSize = 4.0
-lineWidth = 0.95
 medianWidth = 0.25
 
-sWidth = 0.15#0.012
-sSize = 5
 sMarker = 'o'
 sAlpha = 0.6
 sLinewidth = 0.2
@@ -449,7 +449,7 @@ speedBinStep = 0.1
 speedBins = np.arange(speedBinMin, speedBinMax, speedBinStep)
 
 baseDir = '/media/aman/data/flyWalk_data/climbingData/'
-#baseDir = '/media/pointgrey/data/flywalk/'
+baseDir = '/media/pointgrey/data/flywalk/'
 #baseDir = '/media/pointgrey/data/flywalk/climbingData/plots/csvDir_20180901/fig3/'
 colorsRandom = [random_color() for c in xrange(1000)]
 
@@ -533,6 +533,7 @@ colors_ = [(0/div,0/div,0/div,alfa),#gray
              ]
 
 markers = ['^','s','v','d','o', 'P']
+colors = [(230/div,218/div,66/div,alfa),(0/div,114/div,178/div,alfa)]   # for 30 minutes, KCNJ10 data
 
 #---------declare the proper genotypes, markers and colors for the genotypes!!!!------------
 genotypes = []
@@ -592,6 +593,8 @@ for i, gt in enumerate(dirs):
         colors.append(random.choice(colorsRandom))
         markers.append('8')
     print i, gt, len(colors), colors
+
+
 
 sMarkers = markers
 allGenotypesCsvData = []
