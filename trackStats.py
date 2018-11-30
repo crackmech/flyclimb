@@ -30,7 +30,7 @@ For each track find:
 
 """
 import baseFunctions as bf
-import basefunctions_TrackStats as bfTrkStats
+import baseFunctions_trackStats as bfTrkStats
 import numpy as np
 import os
 from datetime import datetime

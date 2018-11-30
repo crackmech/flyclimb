@@ -13,13 +13,7 @@ import random
 from datetime import datetime
 import Tkinter as tk
 import tkFileDialog as tkd
-from scipy import stats
 import csv
-
-#from datetime import timedelta
-#import matplotlib.pyplot as plt
-#import xlwt
-#import matplotlib
 
 def natural_sort(l): 
     convert = lambda text: int(text) if text.isdigit() else text.lower() 
