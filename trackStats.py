@@ -30,7 +30,7 @@ For each track find:
 
 """
 import baseFunctions as bf
-import trackStatsBasefunctions as trkStatsBf
+import basefunctions_TrackStats as bfTrkStats
 import numpy as np
 import os
 from datetime import datetime
@@ -43,7 +43,7 @@ imDataFolder = 'imageData'
 headerRowId = 0         # index of the header in the CSV file
 fpsSep = ' ' 
 fpsIndex = -2
-outCsvHeader = trkStatsBf.csvHeader
+outCsvHeader = bfTrkStats.csvHeader
 
 #---- declare all the hyperparameters here----#
 mvmntStopThresh = 0.05  # number of seconds that can be skipped fo fly detection to be counted as a contigous track
@@ -75,7 +75,7 @@ for _,rawDir in enumerate(dirs):
         trackStartDate = csvDetails[0]
         trackStartTime = csvDetails[1]
         try:
-            fps = float(trkStatsBf.getFPS(csvName, os.path.join(rawDir, 'camloop.txt'), fpsSep, fpsIndex))
+            fps = float(bfTrkStats.getFPS(csvName, os.path.join(rawDir, 'camloop.txt'), fpsSep, fpsIndex))
         except:
             fps = 250.0
         skpdFramesThresh = mvmntStopThresh*fps
@@ -93,13 +93,13 @@ for _,rawDir in enumerate(dirs):
         #---get contig track from one csv file----#
         centroids = np.array([x[1:3] for i,x in enumerate(csvData) if i>0], dtype=np.float64)
         if len(centroids)>skpdFramesThresh:
-            brkPts = trkStatsBf.getTrackBreaksPts(centroids)
+            brkPts = bfTrkStats.getTrackBreaksPts(centroids)
             if brkPts!=[]:
-                contigTracks, cnts_ = trkStatsBf.extrapolateTrack(centroids, brkPts, skpdFramesThresh, verbose=False)
+                contigTracks, cnts_ = bfTrkStats.extrapolateTrack(centroids, brkPts, skpdFramesThresh, verbose=False)
             else:
-                print 'no track to split, full length track present'
+                print 'no track to split, full length track present in ==>\n', csvName
                 contigTracks = [[0, len(centroids)]]
-            trackLengths = [trkStatsBf.diff(x) for _,x in enumerate(contigTracks)]
+            trackLengths = [bfTrkStats.diff(x) for _,x in enumerate(contigTracks)]
             thresholdedTracksDur = [x for _,x in enumerate(trackLengths) if x>threshTrackDur]
             threshTrackFrNum = [contigTracks[trackLengths.index(x)] for _,x in enumerate(thresholdedTracksDur)]
             
@@ -107,15 +107,15 @@ for _,rawDir in enumerate(dirs):
             for i,trk in enumerate(threshTrackFrNum):
                 trackData = csvData[headerRowId+1:][trk[0]:trk[1]]
                 centroids = np.array([x[1:3] for i_,x in enumerate(trackData)], dtype=np.float64)
-                brkPts = trkStatsBf.getTrackBreaksPts(centroids)
+                brkPts = bfTrkStats.getTrackBreaksPts(centroids)
                 if brkPts!=[]:
-                    _, cnts = trkStatsBf.extrapolateTrack(centroids, brkPts, skpdFramesThresh, verbose=False)
+                    _, cnts = bfTrkStats.extrapolateTrack(centroids, brkPts, skpdFramesThresh, verbose=False)
                 else:
                     cnts = centroids
                 bodyLen = np.array([x[colIdBodyLen] for i_,x in enumerate(trackData) if float(x[colIdBodyLen])>0], dtype=np.float64)
                 angle = np.array([x[colIdAngle] for i_,x in enumerate(trackData) if float(x[colIdAngle])>0], dtype=np.float64)
-                instanDis = trkStatsBf.getTotEuDis(cnts)
-                gti, rSquared = trkStatsBf.getTrackDirection(cnts, threshTrackLen)
+                instanDis = bfTrkStats.getTotEuDis(cnts)
+                gti, rSquared = bfTrkStats.getTrackDirection(cnts, threshTrackLen)
                 # calculate the starting time of the track using track starting frame number from the list of detections
                 trackStartT_curr = trackTime+timedelta(seconds=(trk[0]/fps))  
                 # calculate the stoping time of the track using track stoping frame number from the list of detections
