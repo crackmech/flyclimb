@@ -75,8 +75,8 @@ disTotal        = 23000
 
 
 
-unitTime = 60
-nUnitTimes = maxTimeThresh/unitTime
+unitTime = 60   #seconds
+nUnitTimes = maxTimeThresh/unitTime # number of minutes
 figWidth = 1.6*nUnitTimes
 figHeight = figWidth/1.618
 fontSize = (8/7.0)*figWidth

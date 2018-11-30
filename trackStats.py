@@ -11,21 +11,22 @@ For each track find:
     3)  track length                        (in BLU)
     4)  Average speed                       (in BLU/s)
     5)  Median speed                        (in BLU/s)
-    6)  Std Dev speed                       (in BLU/s)
+    6)  StdDev speed                       (in BLU/s)
     7)  Average body angle                  (in degrees)
     8)  Median body angle                   (in degrees)
-    9)  Std dev body angle                  (in degrees)
+    9)  StdDev body angle                  (in degrees)
     10) Average body Length                 (in pixels)
     11) Median body Length                  (in pixels)
-    12) Std dev body Length                 (in pixels)
+    12) StdDev body Length                 (in pixels)
     13) Path Straightness                   (r^2 value)
     14) Geotactic Index                     (GTI)
     15) Stopping time difference            (in seconds)
-    16) Bin size for calculating distance   (integer)
+    16) Time difference w.r.t first track   (in seconds)
     17) FPS                                 (from camloop.txt)
-    18) Pixel size                          (mm/px)
-    19) Skipped frame threshold             (in seconds)
-    20) Track duration threshold            (in frames)
+    18) Bin size for calculating distance   (integer)
+    19) Pixel size                          (mm/px)
+    20) Skipped frame threshold             (in frames)
+    21) Track duration threshold            (in frames)
 
 
 """
@@ -52,8 +53,6 @@ threshTrackDur = 50     # threshold of track duration, in number of frames
 threshTrackLen = 1      # in BLU
 #---- declared all the hyperparameters above ----#
 
-#baseDir = '/media/aman/data/flyWalk_data/climbingData/'
-#baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/tmp_20171201_195931_CS_20171128_0245_11-Climbing_male/imageData/'
 baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
 csvExt = ['*contoursStats_tmp*.csv']
 #baseDir = '/media/pointgrey/data/flywalk/'
@@ -122,17 +121,19 @@ for _,rawDir in enumerate(dirs):
                 trackStopT_curr = trackTime+timedelta(seconds=(trk[1]/fps))
                 if trackNumber==0:
                     trackStopT_old = trackStartT_curr
-                trackStopDelT = (trackStartT_curr-trackStopT_old).total_seconds()
+                    trackDeltaT = 0
+                trackStopDeltaT = (trackStartT_curr-trackStopT_old).total_seconds()
+                trackDeltaT+= trackStopDeltaT+(trackStopT_curr-trackStartT_curr).total_seconds()
                 trackStopT_old = trackStopT_curr
                 trackDataOutput.append([csvName.rstrip('.csv')+'_'+str(i), len(cnts), np.sum(instanDis),
                                         np.mean(instanDis), np.median(instanDis), np.std(instanDis),
                                         np.mean(angle), np.median(angle), np.std(angle),
                                         np.mean(bodyLen), np.median(bodyLen), np.std(bodyLen),
-                                        rSquared, gti, trackStopDelT,
+                                        rSquared, gti, trackStopDeltaT,trackDeltaT,
                                         fps, binSize, pxSize,
                                         skpdFramesThresh, threshTrackDur,
                                         ])
-                #print iF,i, trackStopDelT, trk
+                #print iF,i, trackStopDeltaT, trk
                 trackNumber+=1
     outCsvName = os.path.join(rawDir,'trackStats_'+rawDir.split(os.sep)[-1]+'.csv')
     with open(outCsvName, 'wb') as csvfile: 
@@ -140,10 +141,32 @@ for _,rawDir in enumerate(dirs):
         csvWriter.writerow(outCsvHeader)
         csvWriter.writerows(trackDataOutput)
 
+'''
+fix for distance jumps,
+'''
+
+threshTrackTime         = 300   # in seconds, maximum duration of behaviour to be analysed
+threshTrackLenMulti     = 3     # multipler of BLU for minimum trackLength w.r.t BLU
+unitTimeDur             = 60    # unit time in seconds for pooling data for timeSeries analysis
+#minTrackLen = blu*3
+#disMinThres = blu/20
+#disMaxThres = blu
+#consecWin = 7
+#trackLenThresh = 10*blu
 
 
-
-
+'''
+for each fly, if trackLen>threshTrackLen and , then , for that track, calculate:
+'''
+colIdTrackLen   = 2
+colIdtrackTmPt  = 15
+colIdBodyLen    = 10
+flyStats = []
+blu = np.average(np.array([x[colIdBodyLen] for i_,x in enumerate(trackDataOutput)]))
+threshTrackLen = blu*threshTrackLenMulti
+for i,x in enumerate(trackDataOutput):
+    if x[colIdTrackLen]>=threshTrackLen and x[colIdtrackTmPt]<threshTrackTime:
+        flyStats.append(x)
 
 
 

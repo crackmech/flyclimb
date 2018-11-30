@@ -4,6 +4,8 @@
 Created on Fri Nov 30 15:18:03 2018
 
 @author: aman
+
+functions file for generating a single track statistics file for each fly
 """
 
 import numpy as np
@@ -141,6 +143,7 @@ csvHeader = ['trackDetails',
                 'path straightness (r^2)',
                 'geotactic Index',
                 'latency (seconds)',
+                'timeDelta (seconds)',
                 'FPS',
                 'Bin Size (frames)',
                 'Pixel Size (um/px)',
