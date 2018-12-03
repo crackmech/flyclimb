@@ -157,4 +157,201 @@ csvHeader = ['trackDetails',
 
 
 
+def getMedVal(array):
+    '''
+    return the "median" value of the array to be used as median value of array
+    '''
+    array = np.array(array, dtype=np.float64)
+    return np.median(array)
+
+def getTotalNTracks(array, colIdtracknumber):
+    '''
+    returns the total number of tracks in the given array
+    '''
+    return len(array)
+
+def getMedTrackDur(array, colIdtrackdur):
+    '''
+    returns the median track duration from the input array of tracks for a single fly
+    '''
+    trackDurs = [x[colIdtrackdur] for _,x in enumerate(array)]
+    return getMedVal(trackDurs)
+
+def getTotDisTrvld(array, colIdtracklen):
+    '''
+    returns the total distance travelled by a single fly
+    '''
+    return np.sum(np.array([x[colIdtracklen] for _,x in enumerate(array)], dtype=np.float64))
+
+def getAvFps(array, colIdfps):
+    '''
+    returns the average standard deviation of body angle of a single fly 
+    '''
+    return np.average(np.array([x[colIdfps] for _,x in enumerate(array)], dtype=np.float64))
+
+def getAvSpeed(array, colIdspeedmedian, colIdfps, colIdbodylenmedian):
+    '''
+    returns the average speed of a single fly by taking the average of the
+        median speed of each track
+    '''
+    return np.average(np.array(
+            [(np.float(x[colIdspeedmedian])*np.float(x[colIdfps]))/np.float(x[colIdbodylenmedian])\
+            for _,x in enumerate(array)], dtype=np.float64))
+
+def getBodyAngleStd(array, colIdbodyangstd):
+    '''
+    returns the average standard deviation of body angle of a single fly 
+    '''
+    return np.average(np.array([x[colIdbodyangstd] for _,x in enumerate(array)], dtype=np.float64))
+
+def getAvBodyLen(array, colIdbodylenmedian):
+    '''
+    returns the average body length of a single fly by taking the average of the
+        median body length of each track
+    '''
+    return np.average(np.array([x[colIdbodylenmedian] for _,x in enumerate(array)], dtype=np.float64))
+
+def getAvStraightness(array, colIdstraightness):
+    '''
+    returns the average straightness of a single fly 
+    '''
+    return np.average(np.array([np.square(np.float(x[colIdstraightness])) for _,x in enumerate(array)], dtype=np.float64))
+
+def getAvGti(array, colIdgti):
+    '''
+    returns the average geotactic Index of a single fly 
+    '''
+    return np.average(np.array([x[colIdgti] for _,x in enumerate(array)], dtype=np.float64))
+
+def getMedlatency(array, colIdlatency):
+    '''
+    returns the median track duration from the input array of tracks for a single fly
+    '''
+    trackLatencies = [x[colIdlatency] for _,x in enumerate(array)]
+    return getMedVal(trackLatencies)
+
+def getTotDur(array, colIdtrackdur):
+    '''
+    returns the total distance travelled by a single fly
+    '''
+    return np.sum(np.array([x[colIdtrackdur] for _,x in enumerate(array)], dtype=np.float64))
+
+def getAvDisPerTrk(array, colIdtracklen):
+    '''
+    returns the average distance covered per track by a single fly
+    '''
+    return np.average(np.array([x[colIdtracklen] for _,x in enumerate(array)], dtype=np.float64))
+
+def getSex(array, colIdtrackdetails, colors):
+    '''
+    determine if the fly is male or female, based on the name of the track,
+        name of the track contains the sex, either the fly is male or female
+    If the sex data is not present, then the fly is determined as unknown
+    Returns:
+        0 for female
+        1 for male
+        2 for unknown
+    '''
+    if len(array)>0:
+        trackDetails = array[0][colIdtrackdetails]
+        if '_female' in trackDetails:
+            return 0, colors['female']
+        elif '_male' in trackDetails:
+            return 1, colors['male']
+        else:
+            return 2, colors['unknownSex']
+    else:
+        return None
+
+def getPooledData(trackStatsData, csvHeader, sexcolors):
+    '''
+    converts the raw trackStatsData to data for stats and final plotting
+        0)  Determine sex, male or Female
+        1)  Color for the animal (dependent on sex)
+        2)  Total number of tracks
+        3)  Median duration of tracks
+        4)  Total distance travelled
+        5)  Average Speed
+        6)  Average of StdDev bodyAngle
+        7)  Average body Length
+        8)  Average Path Straightness
+        9)  Average Geotactic Index
+        10) Median latency
+        11) Total time spent climbing
+        12) Average distance per track
+        13) Body length Unit size 
+        14) fps
+    '''
+    """FIX THE INPUT colIds and OUTPUT FOR THE DICT OF TITLES"""
+    colIdTrackDetails = [csvHeader.index(x) for x in csvHeader if 'trackDetails' in x][0]
+    colIdTrackDur = [csvHeader.index(x) for x in csvHeader if 'track duration' in x][0]
+    colIdTrackLen = [csvHeader.index(x) for x in csvHeader if 'distance travelled' in x][0]
+    colIdTrackSpeed = [csvHeader.index(x) for x in csvHeader if 'median instantaneuos speed ' in x][0]
+    colIdBdAngStd = [csvHeader.index(x) for x in csvHeader if 'STD body angle' in x][0]
+    colIdTrackBdLen = [csvHeader.index(x) for x in csvHeader if 'median body length' in x][0]
+    colIdTrackStrght = [csvHeader.index(x) for x in csvHeader if 'path straightness' in x][0]
+    colIdTrackGti = [csvHeader.index(x) for x in csvHeader if 'geotactic Index' in x][0]
+    colIdTrackLtncy = [csvHeader.index(x) for x in csvHeader if 'latency' in x][0]
+    colIdTrackFps = [csvHeader.index(x) for x in csvHeader if 'FPS' in x][0]
+    colIdPxSize = [csvHeader.index(x) for x in csvHeader if 'Pixel Size' in x][0]
+    avBdLen = getAvBodyLen(trackStatsData, colIdTrackBdLen)
+    fps = getAvFps(trackStatsData, colIdTrackFps)
+    pxSize = np.float(trackStatsData[0][colIdPxSize])
+    blu = avBdLen*pxSize
+    sex, sexColor = getSex(trackStatsData, colIdTrackDetails, sexcolors)
+    trackTotNum = getTotalNTracks(trackStatsData, None)
+    trackDurMed = getMedTrackDur(trackStatsData, colIdTrackDur)/fps         # in seconds
+    totDis = getTotDisTrvld(trackStatsData, colIdTrackLen)/avBdLen          # in BLUs
+    avSpeed = getAvSpeed(trackStatsData, colIdTrackSpeed, colIdTrackFps, \
+                        colIdTrackBdLen)                                    # in BLU/sec
+    avStdBdAng = getBodyAngleStd(trackStatsData, colIdBdAngStd)
+    avTrackStrght = getAvStraightness(trackStatsData, colIdTrackStrght)
+    avGti = getAvGti(trackStatsData, colIdTrackGti)
+    medLatency = getMedlatency(trackStatsData, colIdTrackLtncy)
+    totTime = getTotDur(trackStatsData, colIdTrackDur)/fps                  # in seconds
+    avDis = getAvDisPerTrk(trackStatsData, colIdTrackLen)/avBdLen           # in BLUs
+    return [sex, sexColor, trackTotNum, trackDurMed, totDis, avSpeed, \
+            avStdBdAng, avBdLen, avTrackStrght, avGti, medLatency, \
+            totTime, avDis, blu, fps]
+
+
+
+sWidth = 0.15           #0.012
+sSize = 5              #5 for 5 minutes, 300 for 30 minutes
+sMarker = 'o'
+sAlpha = 0.6
+sLinewidth = 0.2
+sEdgCol = (0,0,0)
+scatterDataWidth = 0.012
+sCol = (1,1,1)
+
+def plotScatter(axis, data, scatterX, scatterWidth = sWidth, \
+                scatterRadius = sSize , scatterColor = sCol,\
+                scatterMarker = sMarker, scatterAlpha = sAlpha, \
+                scatterLineWidth = sLinewidth, scatterEdgeColor = sEdgCol, zOrder=0):
+    '''
+    Takes the data and outputs the scatter plot on the given axis.
+    
+    Returns the axis with scatter plot
+    '''
+    return axis.scatter(np.linspace(scatterWidth+scatterX, -scatterWidth+scatterX,len(data)), data,\
+            s=scatterRadius, color = scatterColor, marker=scatterMarker,\
+            alpha=scatterAlpha, linewidths=scatterLineWidth, edgecolors=scatterEdgeColor, zorder=zOrder )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
