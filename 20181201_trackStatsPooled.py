@@ -5,6 +5,50 @@ Created on Wed Oct 24 01:03:19 2018
 
 @author: aman
 
+Using INPUT: GenotypeDirectory:
+    for each fly in a folder, for each track:
+        if trackLen>threshTrackLen and tracktimePoint<maxTimeDuration, then,
+            for that track, get everything into one list 
+    OUTPUT FILE: dataFile
+
+Using INPUT: dataFile:
+    Segregate tracks for perUnitTime
+    OUTPUT FILE: unitTimeData
+
+Using INPUT: dataFile/unitTimeData:
+    For each parameter, get data for plotting for each fly 
+    OUTPUT FILE: pooledTotalData/pooledUnitTimeData
+
+Using INPUT: pooledTotalData:
+    Plot scatterplots for each parameter for each genotype 
+
+Using INPUT: pooledUnitTimeData
+    Get average and error data for each parameter for each timepoint
+    OUTPUT FILE: plotPooledUnitTimeData
+
+Using INPUT: plotPooledUnitTimeData:
+    Plot for each parameter for each timePoint for each genotype
+
+Segregate and ploteach genotype for:
+    Positive and negative geotactic index
+    Males and females data
+
+
+0)  Determine sex, male or Female
+1)  Color for the animal (dependent on sex)
+2)  Total number of tracks
+3)  Median duration of tracks
+4)  Total distance travelled
+5)  Average Speed
+6)  Average of StdDev bodyAngle
+7)  Average body Length
+8)  Average Path Straightness
+9)  Average Geotactic Index
+10) Median latency
+11) Total time spent climbing
+12) Average distance per track
+13) Body length Unit size 
+14) fps
 """
 #from datetime import datetime
 #from datetime import timedelta
@@ -16,29 +60,6 @@ import baseFunctions as bf
 import baseFunctions_trackStats as bfTrkStats
 from matplotlib import pyplot as plt
 
-'''
-for each fly, if trackLen>threshTrackLen and tracktimePoint<maxTimeDuration, then,
-    for that track, get everything into one list
-from this list get a list of timeSeries Data
-use the timeseries list to plot total Data
-'''
-'''
-        0)  Determine sex, male or Female
-        1)  Color for the animal (dependent on sex)
-        2)  Total number of tracks
-        3)  Median duration of tracks
-        4)  Total distance travelled
-        5)  Average Speed
-        6)  Average of StdDev bodyAngle
-        7)  Average body Length
-        8)  Average Path Straightness
-        9)  Average Geotactic Index
-        10) Median latency
-        11) Total time spent climbing
-        12) Average distance per track
-        13) Body length Unit size 
-        14) fps
-'''
 threshTrackTime         = 300   # in seconds, maximum duration of behaviour to be analysed
 threshTrackLenMulti     = 3     # multipler of BLU for minimum trackLength w.r.t BLU
 unitTimeDur             = 60    # unit time in seconds for pooling data for timeSeries analysis
@@ -79,7 +100,7 @@ pltParamList = ['trackNum', 'trackDurMed',
                 'disPerTrk', 'blu', 'fps',
                 ]
 
-
+#============================================================================================================
 #baseDir = '/media/pointgrey/data/flywalk/'
 baseDir = '/media/aman/data/flyWalk_data/climbingData/climbingData_20181201/csvDir/'
 #baseDir = bf.getFolder(baseDir)
@@ -107,7 +128,7 @@ for i_,d in enumerate(csvDirs):
     pooledTotalDataTmSrs[genotype] = pldUntData
     pltTotalData[genotype] = pltDataTotal
     pltTmSrsData[genotype] = pltDataUnitTime
-
+#============================================================================================================
 
 #------test plot
 #---- Plot the total data from behaviour from total time measured ----#
@@ -143,7 +164,7 @@ for i in xrange(len(pltTmSrsData[gtype])):
         plt.title(str(i)+'_'+pltParamList[i])
 plt.show()
 
-
+#============================================================================================================
 
 '''    MAKE GTI BASED PLOTS   '''
 
@@ -208,7 +229,7 @@ plt.show()
 
 '''    MADE GTI BASED PLOTS   '''
 
-
+#============================================================================================================
 
 '''    MAKE SEX BASED PLOTS   '''
 
@@ -265,17 +286,5 @@ plt.show()
 
 '''    MADE SEX BASED PLOTS   '''
 
-
-
-""" ---Get BLU BASED DATA---
-    ---MAKE FOR MULTIPLE GENOTYPES---
-    ---MAKE GTI BASED PLOTS---
-    ---MAKE SEX BASED PLOTS---
-    GET STATS FOR ALL
-    FIX MEDIAN VALUE ALGORITHM
-    LINE NUMBER 659 in 20180924_ClimbingPlots_MvsF.....py FOR THE DISTANCE TRAVELLED CONFUSION
-"""
-
-
-
+#============================================================================================================
 

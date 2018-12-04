@@ -360,6 +360,9 @@ def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenm
                 print('No track data found for :\n%s'%f.split(dirName)[-1])
     #---- read all stats data from each fly folder in a genotype folder ----#
     
+    #---- get plot data of the total data from behaviour from total time measured ----#
+    pooledtotaldata = [getPooledData(x, csvheader, sexcolors) for i_,x in enumerate(genotypedata) if len(x)>0]
+    
     
     unitTimeN = threshtotbehavtime/unittimedur
     #---- convert all data into a list of unitTimePoints with wach element containing raw
@@ -376,9 +379,6 @@ def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenm
             genotypeUnitTimeData[i].append(unitTimeData)
             if len(unitTimeData)>0:
                 pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors))
-    
-    #---- get plot data of the total data from behaviour from total time measured ----#
-    pooledtotaldata = [getPooledData(x, csvheader, sexcolors) for i_,x in enumerate(genotypedata) if len(x)>0]
     
     #---- get plot data of the timeSeries data from behaviour from total time measured ----#
     pltDataUnitTime = []
