@@ -8,9 +8,11 @@ Created on Fri Nov 30 15:18:03 2018
 functions file for generating a single track statistics file for each fly
 """
 
+import baseFunctions as bf
 import numpy as np
 from datetime import datetime
 from scipy import stats
+import os
 
 def getTimeDiffFromTimes(t2, t1):
     '''
@@ -266,7 +268,7 @@ def getSex(array, colIdtrackdetails, colors):
 def getPooledData(trackStatsData, csvHeader, sexcolors):
     '''
     converts the raw trackStatsData to data for stats and final plotting
-        0)  Determine sex, male or Female
+        0)  Determine sex, male or female
         1)  Color for the animal (dependent on sex)
         2)  Total number of tracks
         3)  Median duration of tracks
@@ -314,30 +316,79 @@ def getPooledData(trackStatsData, csvHeader, sexcolors):
             avStdBdAng, avBdLen, avTrackStrght, avGti, medLatency, \
             totTime, avDis, blu, fps]
 
-
-
-sWidth = 0.15           #0.012
-sSize = 5              #5 for 5 minutes, 300 for 30 minutes
-sMarker = 'o'
-sAlpha = 0.6
-sLinewidth = 0.2
-sEdgCol = (0,0,0)
-scatterDataWidth = 0.012
-sCol = (1,1,1)
-
-def plotScatter(axis, data, scatterX, scatterWidth = sWidth, \
-                scatterRadius = sSize , scatterColor = sCol,\
-                scatterMarker = sMarker, scatterAlpha = sAlpha, \
-                scatterLineWidth = sLinewidth, scatterEdgeColor = sEdgCol, zOrder=0):
+def getUnitTimePltData(untTmData, colId):
     '''
-    Takes the data and outputs the scatter plot on the given axis.
+    get the data for plotting the timeSeries plots
+    '''
+    outData = [[x[colId] for i_,x in enumerate(d)] for i,d in enumerate(untTmData)]
+    dataAv = [np.average(x) for i_,x in enumerate(outData)]
+    dataerr = [np.std(x)/np.sqrt(len(x)) for i_,x in enumerate(outData)]
+    return dataAv, dataerr
+
+
+def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenmultiplier,
+                  csvheader, csvheaderrow, colIdpooleddict, sexcolors, pltparamlist):
+    '''
+    returns:
+        1)  a list of all data from the input dirName (directory with data from all flies of a single genotype)
+        2)  a list of timeSeries data, with time difference of unitTime between two time points, upto threshtotbehavtime
+        3)  a list of data for plotting behaviour from total time of behaviour, deteremined by threshtotbehavtime
+        4)  a list of data for plotting timeSeries data, with DataAverage and DataError for each parameter for each timepoint
+    '''
+    #---- read all stats data from each fly folder in a genotype folder ----#
+    dirs = bf.getDirList(dirName)
+    genotype = dirName.split(os.sep)[-1]
+    print('Total fly data present in %s : %d'%(genotype, len(dirs)))
+    colIdbodylen = [csvheader.index(x) for x in csvheader if 'median body length' in x][0]
+    colIdtracklen = [csvheader.index(x) for x in csvheader if 'distance' in x][0]
+    colIdtracktmpt = [csvheader.index(x) for x in csvheader if 'timeDelta' in x][0]
+    genotypedata = []
+    for i,d in enumerate(dirs):
+        fList = bf.getFiles(d, csvext)
+        for _, f in enumerate(fList):
+            trackDataOutput = bf.readCsv(f)[csvheaderrow+1:]
+            if len(trackDataOutput)>0:
+                flyStats = []
+                blu = np.nanmean(np.array([x[colIdbodylen] for _,x in enumerate(trackDataOutput)], dtype=np.float64))
+                threshTrackLen = blu*threshtracklenmultiplier
+                #print d,i, blu, threshTrackLen
+                for ix,x in enumerate(trackDataOutput):
+                    if np.float(x[colIdtracklen])>=threshTrackLen and np.float(x[colIdtracktmpt])<threshtotbehavtime:
+                        flyStats.append(x)
+                genotypedata.append(flyStats)
+            else:
+                print('No track data found for :\n%s'%f.split(dirName)[-1])
+    #---- read all stats data from each fly folder in a genotype folder ----#
     
-    Returns the axis with scatter plot
-    '''
-    return axis.scatter(np.linspace(scatterWidth+scatterX, -scatterWidth+scatterX,len(data)), data,\
-            s=scatterRadius, color = scatterColor, marker=scatterMarker,\
-            alpha=scatterAlpha, linewidths=scatterLineWidth, edgecolors=scatterEdgeColor, zorder=zOrder )
-
+    
+    unitTimeN = threshtotbehavtime/unittimedur
+    #---- convert all data into a list of unitTimePoints with wach element containing raw
+    #       data from the stats csv file for each fly in a genotype folder ----#
+    genotypeUnitTimeData = [[] for x in xrange(unitTimeN)]
+    pooledUnitTimeData = [[] for x in xrange(unitTimeN)]
+    for i_,d in enumerate(genotypedata):
+        #print d[0][0]
+        for i in xrange(unitTimeN):
+            unitTimeData = []
+            for i_,f in enumerate(d):
+                if i*unittimedur<=np.float(f[colIdtracktmpt])<(i+1)*unittimedur:
+                    unitTimeData.append(f)
+            genotypeUnitTimeData[i].append(unitTimeData)
+            if len(unitTimeData)>0:
+                pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors))
+    
+    #---- get plot data of the total data from behaviour from total time measured ----#
+    pooledtotaldata = [getPooledData(x, csvheader, sexcolors) for i_,x in enumerate(genotypedata) if len(x)>0]
+    
+    #---- get plot data of the timeSeries data from behaviour from total time measured ----#
+    pltDataUnitTime = []
+    pltDataTotal = []
+    for i in xrange(len(pltparamlist)):
+        #print pltParamList[i], colIdPooledDict[pltParamList[i]]
+        pltDataUnitTime.append(getUnitTimePltData(pooledUnitTimeData, colIdpooleddict[pltparamlist[i]]))
+        pltDataTotal.append([x[colIdpooleddict[pltparamlist[i]]] for i_,x in enumerate(pooledtotaldata)])
+    
+    return genotypedata, genotypeUnitTimeData, pooledtotaldata, pooledUnitTimeData, pltDataTotal, pltDataUnitTime
 
 
 
