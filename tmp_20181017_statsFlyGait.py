@@ -7,11 +7,13 @@ Created on Wed Oct 17 01:22:47 2018
 """
 
 import scikit_posthocs as sp
-import csv
 import scipy.stats as stats
-import numpy as np
-import matplotlib.pyplot as plt
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from statsmodels.stats.libqsturng import psturng
+from statsmodels.stats.anova import AnovaRM
+import pandas as pd
 
+import numpy as np
 import os
 import re
 from datetime import datetime
@@ -19,11 +21,9 @@ import Tkinter as tk
 import tkFileDialog as tkd
 import glob
 import random
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from statsmodels.stats.libqsturng import psturng
-from statsmodels.stats.anova import AnovaRM
-import pandas as pd
+import csv
 
+import matplotlib.pyplot as plt
 
 
 

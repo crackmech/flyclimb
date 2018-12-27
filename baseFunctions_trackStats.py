@@ -265,7 +265,7 @@ def getSex(array, colIdtrackdetails, colors):
     else:
         return None
 
-def getPooledData(trackStatsData, csvHeader, sexcolors):
+def getPooledData(trackStatsData, csvHeader, sexcolors, allTrackData):
     '''
     converts the raw trackStatsData to data for stats and final plotting
         0)  Determine sex, male or female
@@ -296,22 +296,41 @@ def getPooledData(trackStatsData, csvHeader, sexcolors):
     colIdTrackLtncy = [csvHeader.index(x) for x in csvHeader if 'latency' in x][0]
     colIdTrackFps = [csvHeader.index(x) for x in csvHeader if 'FPS' in x][0]
     colIdPxSize = [csvHeader.index(x) for x in csvHeader if 'Pixel Size' in x][0]
-    avBdLen = getAvBodyLen(trackStatsData, colIdTrackBdLen)
-    fps = getAvFps(trackStatsData, colIdTrackFps)
-    pxSize = np.float(trackStatsData[0][colIdPxSize])
-    blu = avBdLen*pxSize
-    sex, sexColor = getSex(trackStatsData, colIdTrackDetails, sexcolors)
-    trackTotNum = getTotalNTracks(trackStatsData, None)
-    trackDurMed = getMedTrackDur(trackStatsData, colIdTrackDur)/fps         # in seconds
-    totDis = getTotDisTrvld(trackStatsData, colIdTrackLen)/avBdLen          # in BLUs
-    avSpeed = getAvSpeed(trackStatsData, colIdTrackSpeed, colIdTrackFps, \
-                        colIdTrackBdLen)                                    # in BLU/sec
-    avStdBdAng = getBodyAngleStd(trackStatsData, colIdBdAngStd)
-    avTrackStrght = getAvStraightness(trackStatsData, colIdTrackStrght)
-    avGti = getAvGti(trackStatsData, colIdTrackGti)
-    medLatency = getMedlatency(trackStatsData, colIdTrackLtncy)
-    totTime = getTotDur(trackStatsData, colIdTrackDur)/fps                  # in seconds
-    avDis = getAvDisPerTrk(trackStatsData, colIdTrackLen)/avBdLen           # in BLUs
+    if len(trackStatsData)>0:
+        avBdLen = getAvBodyLen(trackStatsData, colIdTrackBdLen)
+        fps = getAvFps(trackStatsData, colIdTrackFps)
+        pxSize = np.float(trackStatsData[0][colIdPxSize])
+        blu = avBdLen*pxSize
+        sex, sexColor = getSex(trackStatsData, colIdTrackDetails, sexcolors)
+        trackTotNum = getTotalNTracks(trackStatsData, None)
+        trackDurMed = getMedTrackDur(trackStatsData, colIdTrackDur)/fps         # in seconds
+        totDis = getTotDisTrvld(trackStatsData, colIdTrackLen)/avBdLen          # in BLUs
+        avSpeed = getAvSpeed(trackStatsData, colIdTrackSpeed, colIdTrackFps, \
+                            colIdTrackBdLen)                                    # in BLU/sec
+        avStdBdAng = getBodyAngleStd(trackStatsData, colIdBdAngStd)
+        avTrackStrght = getAvStraightness(trackStatsData, colIdTrackStrght)
+        avGti = getAvGti(trackStatsData, colIdTrackGti)
+        medLatency = getMedlatency(trackStatsData, colIdTrackLtncy)
+        totTime = getTotDur(trackStatsData, colIdTrackDur)/fps                  # in seconds
+        avDis = getAvDisPerTrk(trackStatsData, colIdTrackLen)/avBdLen           # in BLUs
+    else:
+        avBdLen = getAvBodyLen(allTrackData, colIdTrackBdLen)
+        fps = getAvFps(allTrackData, colIdTrackFps)
+        pxSize = np.float(allTrackData[0][colIdPxSize])
+        blu = avBdLen*pxSize
+        sex, sexColor = getSex(allTrackData, colIdTrackDetails, sexcolors)
+        trackTotNum = 0#getTotalNTracks(trackStatsData, None)
+        trackDurMed = 0#getMedTrackDur(trackStatsData, colIdTrackDur)/fps         # in seconds
+        totDis = 0#getTotDisTrvld(trackStatsData, colIdTrackLen)/avBdLen          # in BLUs
+        avSpeed = 0#getAvSpeed(trackStatsData, colIdTrackSpeed, colIdTrackFps, \
+                   #         colIdTrackBdLen)                                    # in BLU/sec
+        avStdBdAng = np.nan#getBodyAngleStd(trackStatsData, colIdBdAngStd)
+        avTrackStrght = np.nan#getAvStraightness(trackStatsData, colIdTrackStrght)
+        avGti = np.nan#getAvGti(trackStatsData, colIdTrackGti)
+        medLatency = np.nan#getMedlatency(trackStatsData, colIdTrackLtncy)
+        totTime = 0#getTotDur(trackStatsData, colIdTrackDur)/fps                  # in seconds
+        avDis = 0#getAvDisPerTrk(trackStatsData, colIdTrackLen)/avBdLen           # in BLUs
+        
     return [sex, sexColor, trackTotNum, trackDurMed, totDis, avSpeed, \
             avStdBdAng, avBdLen, avTrackStrght, avGti, medLatency, \
             totTime, avDis, blu, fps]
@@ -359,9 +378,9 @@ def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenm
             else:
                 print('No track data found for :\n%s'%f.split(dirName)[-1])
     #---- read all stats data from each fly folder in a genotype folder ----#
-    
+    allData = x
     #---- get plot data of the total data from behaviour from total time measured ----#
-    pooledtotaldata = [getPooledData(x, csvheader, sexcolors) for i_,x in enumerate(genotypedata) if len(x)>0]
+    pooledtotaldata = [getPooledData(x, csvheader, sexcolors, allData) for i_,x in enumerate(genotypedata) if len(x)>0]
     
     
     unitTimeN = threshtotbehavtime/unittimedur
@@ -377,8 +396,11 @@ def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenm
                 if i*unittimedur<=np.float(f[colIdtracktmpt])<(i+1)*unittimedur:
                     unitTimeData.append(f)
             genotypeUnitTimeData[i].append(unitTimeData)
-            if len(unitTimeData)>0:
-                pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors))
+            pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors, d))
+            #if len(unitTimeData)>0:
+            #    pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors, d))
+            #else:
+            #    pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors, d))
     
     #---- get plot data of the timeSeries data from behaviour from total time measured ----#
     pltDataUnitTime = []

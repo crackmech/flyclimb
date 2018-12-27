@@ -7,11 +7,13 @@ Created on Wed Oct 17 01:22:47 2018
 """
 
 import scikit_posthocs as sp
-import csv
 import scipy.stats as stats
-import numpy as np
-import matplotlib.pyplot as plt
+from statsmodels.stats.multicomp import pairwise_tukeyhsd
+from statsmodels.stats.libqsturng import psturng
+from statsmodels.stats.anova import AnovaRM
+import pandas as pd
 
+import numpy as np
 import os
 import re
 from datetime import datetime
@@ -19,12 +21,12 @@ import Tkinter as tk
 import tkFileDialog as tkd
 import glob
 import random
-from statsmodels.stats.multicomp import pairwise_tukeyhsd
-from statsmodels.stats.libqsturng import psturng
-from statsmodels.stats.anova import AnovaRM
-import pandas as pd
+import csv
+
+import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib
+
 matplotlib.rcParams['pdf.fonttype'] = 42
 col=1
 plt.rcParams['axes.facecolor'] = (col,col,col)
@@ -148,16 +150,11 @@ def restrucDataForStats(dataSet, dataSetLabels):
 
 def restrucDataForRMA(dataSet, dataSetLabels):
     restrucData = [[[] for y in dataSetLabels] for x in dataSet[0][0]]
-    maxLen = min([len(x) for x in dataSet])
+    minLen = min([len(x) for x in dataSet])
     for i in xrange(len(dataSet)):
-        for j in xrange(1, maxLen):
-            try:
-                temp_data = dataSet[i][j]
-            except:
-                temp_data = ''
-            for k,d in enumerate(temp_data):
-                if d!='':
-                    restrucData[k][i].append(np.float(d))
+        for j in xrange(1, minLen):
+            for k,d in enumerate(dataSet[i][j]):
+                restrucData[k][i].append(np.float(d))
     return restrucData, dataSet[0][0]
 
 def getKWmultiComp(data, labels, verbose=False):
@@ -186,14 +183,18 @@ def getRMAnova(dataSet, labels, verbose=False):
     return res
 
 def getConcStats(tData, datasetLabels, param, labels, pNormMin, verbose=False):
-    statsData = [['Repeated Measures ANOVA for Concurrency states (S0, S1, S2, S3)']]
     for i,x in enumerate(tData):
         label = '---'+param+'_'+labels[i]+'---'
         rma = getRMAnova(x, datasetLabels, verbose)
-        statsData.append([label])
-        statsData.append([rma.anova_table])
-        statsData.append([rma.summary()])
-    return statsData
+        if i==0:
+            df = rma.anova_table
+            df.insert(loc = 0, column = 'state', value = label)
+        else:
+            print df
+            currDf = rma.anova_table
+            currDf.insert(loc = 0, column = 'state', value = label)
+            df = pd.concat([df, currDf])
+    return df
 
 def getStats(tData, datasetLabels, param, labels, pNormMin, verbose=False):
     c = datasetLabels[0]
@@ -321,21 +322,18 @@ fig.subplots_adjust(left=marginLeft, bottom=marginBottom, right=marginRight, top
 legendPatches = [mpatches.Patch(color=c, label=genotypes[i]) for i,c in enumerate(colors)]
 allStats = []
 concStats = []
+csvOutFname = 'stats_gait.csv'
 for i in xrange(pltRows):
     for j in xrange(pltCols):
         param = paramTitles1[i][j]
         if param=='CONCURRENCY':
             getData = readConcCsv
-            csvOutFname = 'stats_conc.txt'
             doStats = getConcStats
-            writeCsv = 1
             restrucData  = restrucDataForRMA
             statsList = concStats
         else:
             getData = readCsv
-            csvOutFname = 'stats_gait.csv'
             doStats = getStats
-            writeCsv = 0
             restrucData  = restrucDataForStats
             statsList = allStats
         dC = [getData(x) for _,x in enumerate(csvsCtrl) if param in x][0]
@@ -371,19 +369,16 @@ for i in xrange(pltRows):
         ax[i][j].set_title(pltTitle)
         ax[i][j].set_xticks(np.arange(1,pos[-1], step))
         ax[i][j].set_xticklabels(xLabels)
-        if writeCsv==1:
-            csvOutFile = baseDir+csvOutFname
-            with open(csvOutFile, "wb") as f:
-                writer = csv.writer(f)
-                writer.writerows(statsList)
 csvOutFile = baseDir+csvOutFname
-with open(csvOutFile, "wb") as f:
+concStats[0].to_csv(csvOutFile, sep=',')
+with open(csvOutFile, "a") as f:
     writer = csv.writer(f)
+    writer.writerows([[' ',' '] for x in xrange(3)])
     for _,row in enumerate(allStats):
         writer.writerows(row)
 
 ax[legendAxesRowSet,legendAxesColSet].legend(handles=legendPatches,bbox_to_anchor=(legendHorPos, legendVerPos), ncol=3).draggable()
-plt.show()
+#plt.show()
 
 
 
