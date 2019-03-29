@@ -340,12 +340,12 @@ def getUnitTimePltData(untTmData, colId):
     get the data for plotting the timeSeries plots
     '''
     outData = [[x[colId] for i_,x in enumerate(d)] for i,d in enumerate(untTmData)]
-    dataAv = [np.average(x) for i_,x in enumerate(outData)]
-    dataerr = [np.std(x)/np.sqrt(len(x)) for i_,x in enumerate(outData)]
+    dataAv = [np.nanmean(x) for i_,x in enumerate(outData)]
+    dataerr = [np.nanstd(x)/np.sqrt(len(x)) for i_,x in enumerate(outData)]
     return dataAv, dataerr
 
 
-def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenmultiplier,
+def pooledData(dirName, folderList, csvext, unittimedur, threshtotbehavtime, threshtracklenmultiplier,
                   csvheader, csvheaderrow, colIdpooleddict, sexcolors, pltparamlist):
     '''
     returns:
@@ -355,7 +355,7 @@ def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenm
         4)  a list of data for plotting timeSeries data, with DataAverage and DataError for each parameter for each timepoint
     '''
     #---- read all stats data from each fly folder in a genotype folder ----#
-    dirs = bf.getDirList(dirName)
+    dirs = folderList
     genotype = dirName.split(os.sep)[-1]
     print('Total fly data present in %s : %d'%(genotype, len(dirs)))
     colIdbodylen = [csvheader.index(x) for x in csvheader if 'median body length' in x][0]
@@ -397,11 +397,6 @@ def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenm
                     unitTimeData.append(f)
             genotypeUnitTimeData[i].append(unitTimeData)
             pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors, d))
-            #if len(unitTimeData)>0:
-            #    pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors, d))
-            #else:
-            #    pooledUnitTimeData[i].append(getPooledData(unitTimeData, csvheader, sexcolors, d))
-    
     #---- get plot data of the timeSeries data from behaviour from total time measured ----#
     pltDataUnitTime = []
     pltDataTotal = []
@@ -413,13 +408,227 @@ def pooledData(dirName, csvext, unittimedur, threshtotbehavtime, threshtracklenm
     return genotypedata, genotypeUnitTimeData, pooledtotaldata, pooledUnitTimeData, pltDataTotal, pltDataUnitTime
 
 
+def readFigFolderFile(figFolderFName, figFolderList):
+    figFoldersDict = {}
+    with open(figFolderFName, 'r') as f:
+        lines = f.readlines()
+    for figFold in figFolderList:
+        figFoldersDict[figFold] = [line for line in lines if figFold in line]
+    return figFoldersDict
 
 
+import pandas as pd
+import rpy2.robjects as robjects
+from rpy2.robjects.packages import importr
+from rpy2.robjects import pandas2ri
 
+pandas2ri.activate()
+nlme = importr('nlme')
+statsR = importr('stats')
+base = importr('base')
+multcomp = importr('multcomp')
+agr = importr('agricolae')
+fsa = importr('FSA')
 
+def createDF(data, labels, genotypes):
+    '''
+    returns the pandas DataFrame for stats proessing in R
+    '''
+    prmValDict = {labels[0]:[], labels[1]:[]}
+    for i,x in enumerate(data):
+        flyLabls = [genotypes[i] for y in xrange(len(x))]
+        dfData = [x, flyLabls]
+        for j,y in enumerate(labels):
+            prmValDict[y].extend(dfData[j])
+    return pd.DataFrame(prmValDict, columns=labels)
 
+def r_matrix_to_data_frame(r_matrix):
+    """Convert an R matrix into a Pandas DataFrame"""
+    array = pandas2ri.ri2py(r_matrix)
+    return pd.DataFrame(array,
+                        index=r_matrix.names[0],
+                        columns=r_matrix.names[1])
+                        
+def getRKrusWall(formula, data):
+    '''
+    returns the data analysed by Kruskal wallis in 'R' using rpy2 module
+    '''
+    krsWall = statsR.kruskal_test(formula=formula, data=data)
+    krsWallPd = pd.DataFrame(pandas2ri.ri2py(krsWall.rx2('p.value')))
+    pVal = krsWallPd[0][0]
+    postHocDunn = fsa.dunnTest(formula, data=data, method='bh')
+    postHoc = pd.DataFrame(pandas2ri.ri2py(postHocDunn.rx2('res')))
+    chiSq = pd.DataFrame(pandas2ri.ri2py(krsWall.rx2('statistic')))
+    return {'pvalue': pVal, 'chi-squared': chiSq,'posthoc': postHoc.sort_values(by=['Comparison'])}
 
+def getRAnoval(formula, data):
+    '''
+    returns the data analysed by Kruskal wallis in 'R' using rpy2 module
+    '''
+    model1 = robjects.r.lm(formula=formula, data=data)
+    anv = robjects.r.anova(model1)
+    postHocHSD = agr.HSD_test(model1, 'genotype', group=False, console=False)
+    postHoc = pd.DataFrame(pandas2ri.ri2py(postHocHSD.rx2('comparison')))
+    smry1 = pd.DataFrame(pandas2ri.ri2py(anv))
+    pVal= smry1['Pr(>F)']['genotype']
+    fValue = smry1['F value']['genotype']
+    return {'pvalue': pVal, 'fvalue': fValue, 'posthoc': postHoc}
 
+def getStatsMultiGrps(pooledData, pooledDataLabels, pltPrmList, colIdPooledDict, statsFormula, dfLbls, pmin, statsOutFName):
+    statsList = {}
+    statsFormula = robjects.Formula(statsFormula)
+    for param in pltPrmList:
+        colId = colIdPooledDict[param]
+        print ('===== Comparing for %s ====='%(param))
+        dSets = [[x[colId] for i_,x in enumerate(pooledData[lbl])] for g_,lbl in enumerate(pooledDataLabels)]
+        normP = [stats.normaltest(dSet)[1] for dSet in dSets]
+        
+        df = createDF(dSets, dfLbls, pooledDataLabels)
+        dfr1 = pandas2ri.py2ri(df)
+        normP = [stats.normaltest(dSet)[1] for dSet in dSets]
+        print 'Min Normal Dist Value: ',min(normP)
+        if min(normP)<pmin:
+            statsTest = ('Kruskal-Wallis')
+            statsData = getRKrusWall(statsFormula, dfr1)
+        else:
+            statsTest = ('One Way ANOVA')
+            statsData = getRAnoval(statsFormula, dfr1)
+            print statsData['fvalue']
+        statsList[param] = statsData
+        f = open(statsOutFName, 'a')
+        f.write('\n\nComparing for parameter: , %s\n\n'%(param))
+        f.close()
+        descStats = pd.DataFrame(pandas2ri.ri2py(fsa.Summarize(statsFormula, data = dfr1)))
+        descStats.to_csv(statsOutFName, mode='a', header=True)
+        statsKeys = statsData.keys()
+        statsKeys.sort()
+        statsKeys.remove('posthoc')
+        statsKeys.insert(len(statsKeys),'posthoc')
+        f = open(statsOutFName, 'a')
+        f.write('\nStats:, %s\n'%(statsTest))
+        f.close()
+        for key in statsKeys:
+            f = open(statsOutFName, 'a')
+            f.write('%s:'%(key))
+            if key=='posthoc':
+                f.write('\n')
+                f.close()
+                statsData[key].to_csv(statsOutFName, mode='a', header=True)
+            elif key=='chi-squared':
+                f.write(', '+str(statsData[key][0][0])+'\n')
+            elif key=='fvalue':
+                da = '%0.3f'%(statsData[key])
+                print param, key, statsData[key], da, type(da)
+                f.write(', '+str(statsData[key])+'\n')
+            else:
+                f.write(', '+str(statsData[key])+'\n')
+        f = open(statsOutFName, 'a')
+        [f.write('-=-=-=-=-=-=-=-=-=-,') for x in xrange(10)]
+        f.close()
+
+def segregateGti(genotypeData, colIdgti):
+    '''
+    returns two lists, containing data segregated based on 
+            Postive and Negative geotactic Index respectively from input genotypeData
+    '''
+    gtineg = []
+    gtipos = []
+    for i,fly in enumerate(genotypeData):
+        flyGtineg = []
+        flyGtipos = []
+        for i_,trk in enumerate(fly):
+            if int(trk[colIdgti])==-1:
+                flyGtineg.append(trk)
+            elif int(trk[colIdgti])==1:
+                flyGtipos.append(trk)
+        gtineg.append(flyGtineg)
+        gtipos.append(flyGtipos)
+    return gtineg, gtipos
+
+def getPooledGTIData(genotypeData, colIdGti, pltPrmList, colIdPooledDict, inCsvHeader, sexColors):
+    '''
+    returns two lists, each for pooled data for 
+            positive and negative GTI data for all parameters in pltPrmList
+    '''
+    gtiPos, gtiNeg = segregateGti(genotypeData, colIdGti)
+    
+    gtiPldNeg = [getPooledData(x, inCsvHeader, sexColors, x) for i_,x in enumerate(gtiNeg) if len(x)>0]
+    gtiPltPldDataNeg = []
+    for i in xrange(len(pltPrmList)):
+        gtiPltPldDataNeg.append([x[colIdPooledDict[pltPrmList[i]]] for i_,x in enumerate(gtiPldNeg)])
+
+    gtiPldPos = [getPooledData(x, inCsvHeader, sexColors, x) for i_,x in enumerate(gtiPos) if len(x)>0]
+    gtiPltPldDataPos = []
+    for i in xrange(len(pltPrmList)):
+        gtiPltPldDataPos.append([x[colIdPooledDict[pltPrmList[i]]] for i_,x in enumerate(gtiPldPos)])
+    
+    pooledTotalGtiData  = {'posGti':gtiPldPos,
+                           'negGti':gtiPldNeg}
+    pltTotalGtiData     = {'posGti':gtiPltPldDataPos,
+                           'negGti':gtiPltPldDataNeg}
+    return pooledTotalGtiData, pltTotalGtiData
+
+def segregateSex(pooledgenotypedata, colIdsex):
+    '''
+    returns two lists, containing data segregated based on 
+            sex from input genotypeData
+    '''
+    males = []
+    females = []
+    for i,fly in enumerate(pooledgenotypedata):
+        if int(fly[colIdsex])==1:
+            males.append(fly)
+        elif int(fly[colIdsex])==0:
+            females.append(fly)
+    return males, females
+
+def getPooledSexData(genotypeData, colIdSex, pltPrmList, colIdPooledDict):
+    '''
+    returns two lists, each for pooled data for 
+            positive and negative GTI data for all parameters in pltPrmList
+    '''
+    sortedMales, sortedFemales = segregateSex(genotypeData, colIdSex)
+    
+    sxdPltPldDataMales = []
+    for i in xrange(len(pltPrmList)):
+        sxdPltPldDataMales.append([x[colIdPooledDict[pltPrmList[i]]] for i_,x in enumerate(sortedMales)])
+    sxdPltPldDataFemales = []
+    for i in xrange(len(pltPrmList)):
+        sxdPltPldDataFemales.append([x[colIdPooledDict[pltPrmList[i]]] for i_,x in enumerate(sortedFemales)])
+    
+    pooledTotalSexData  = {'males':sortedMales,
+                           'females':sortedFemales}
+    pltTotalSexData     = {'males':sxdPltPldDataMales,
+                           'females':sxdPltPldDataFemales}
+    return pooledTotalSexData, pltTotalSexData
+
+def getStats2Grps(pooledData, pooledDataLabels, pltPrmList, colIdPooledDict, pmin, statsOutFName, label):
+    statsList = {}
+    for param in pltPrmList:
+        colId = colIdPooledDict[param]
+        print ('=====%s for %s ====='%(label, param))
+        dSets = [[x[colId] for i_,x in enumerate(pooledData[lbl])] for g_,lbl in enumerate(pooledDataLabels)]
+        normP = [stats.normaltest(dSet)[1] for dSet in dSets]
+        if min(normP)<pmin:
+            statsTest = 'Mann-Whitney'
+            statsData = stats.mannwhitneyu(dSets[0], dSets[1])
+        else:
+            statsTest = 't-test'
+            statsData = stats.ttest_ind(dSets[0], dSets[1])
+        print ('Min Normal Dist Value: %0.2f, test used %s'%(min(normP), statsTest))
+        f = open(statsOutFName, 'a')
+        f.write('\n\n%s\n\nComparing for parameter:, %s\n\n'%(label, param))
+        f.close()
+        descStats =  pd.DataFrame(dSets).transpose().describe()
+        descStats.columns = pooledDataLabels
+        descStats.transpose().to_csv(statsOutFName, mode='a')
+        f = open(statsOutFName, 'a')
+        f.write('\nStats:, %s\np-value:,%0.3f\n'%(statsTest,statsData.pvalue))
+        [f.write('-=-=-=-=-=-=-=-=-=-,') for x in xrange(10)]
+        f.close()
+        statsList[param] = statsData.pvalue
+    return statsList
+    
 
 
 
