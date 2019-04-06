@@ -1,11 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on Fri Sep 21 01:30:46 2018
+Created on Mon Aug 13 00:08:24 2018
 
 @author: aman
-"""
 
+This script will 
+    1)  find the imageData folders which contain fly tracks
+    2)  track the fly in the whole image
+
+"""
 
 import cv2
 import os
@@ -14,24 +18,16 @@ import numpy as np
 import re
 import Tkinter as tk
 import tkFileDialog as tkd
+import random
 from datetime import datetime
 import time
+#import copy
 import csv
 import sys
+
 import multiprocessing as mp
 import itertools
 
-
-params = {} # dict for holding parameter values for contour detection
-params['threshLow'] = 45
-params['threshHigh'] = 255
-
-params['ellaxisRatioMin'] = 0.2
-params['ellaxisRatioMax'] = 0.7
-params['flyareaMin'] = 200 
-params['flyareaMax'] = 2100 
-
-params['blurKernel'] = 11
 
 def present_time():
         now = datetime.now()
@@ -42,6 +38,7 @@ def natural_sort(l):
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
     return sorted(l, key = alphanum_key)
 
+
 def getFolder(initialDir):
     '''
     GUI funciton for browsing and selecting the folder
@@ -50,7 +47,7 @@ def getFolder(initialDir):
     initialDir = tkd.askdirectory(parent=root,
                 initialdir = initialDir, title='Please select a directory')
     root.destroy()
-    return initialDir+'/'
+    return initialDir
 
 def getFiles(dirname, extList):
     filesList = []
@@ -58,43 +55,30 @@ def getFiles(dirname, extList):
         filesList.extend(glob.glob(os.path.join(dirname, ext)))
     return natural_sort(filesList)
 
-def readImStack(flist):
-    '''
-    returns a numpy array of all the images with extension 'imExt' in folder "imFolder"
-    '''
-    img = cv2.imread(flist[0], cv2.IMREAD_GRAYSCALE)
-    imStack = np.zeros((len(flist), img.shape[0], img.shape[1]), dtype=np.uint8)
-    for idx, f in enumerate(flist):
-        imStack[idx] = cv2.imread(f, cv2.IMREAD_GRAYSCALE)
-    return imStack
-
-def imRead(x):
-    return cv2.imread(x, cv2.IMREAD_GRAYSCALE)
+def readIms(dirname, imExts):
+    flist = getFiles(dirname, imExts)
+    img = cv2.imread(flist[0],cv2.IMREAD_GRAYSCALE)
+    imgs = np.zeros((len(flist), img.shape[0], img.shape[1]), dtype = 'uint8')
+    for i in xrange(len(flist)):
+        imgs[i] = cv2.imread(flist[i],cv2.IMREAD_GRAYSCALE)
+    return imgs
 
 def getBgIm(imgs):
     '''
-    returns a background Image for subtraction from all the images using weighted average
+    returns a background Image for subtraction using median values of pixels from stack of all images
     '''
-    avg = np.array((np.median(imgs, axis=0)), dtype = np.uint8)
+    avg = np.array((np.median(imgs, axis=0)), dtype = 'uint8')
     return cv2.convertScaleAbs(avg)
 
 def getBgSubIms(inImgstack, bgIm):
     '''
     returns the stack of images after subtracting the background image from the input imagestack
     '''
-    subIms = np.zeros(np.shape(inImgstack), dtype = np.uint8)
+    subIms = np.zeros(np.shape(inImgstack), dtype=np.uint8)
     for f in range(0, len(inImgstack)):
         subIms[f] = cv2.absdiff(inImgstack[f], bgIm)
     return subIms
     
-
-def displayImgs(imgs, fps):
-    for _, img in enumerate(imgs):
-        cv2.imshow('123',img)
-        cv2.waitKey(1000/fps)
-    cv2.destroyAllWindows()
-
-
 def getImContours(args):
     '''
     returns the list of detected contour
@@ -114,9 +98,9 @@ def getImContours(args):
     im = args[1].copy()
     params = args[2]
     contour = []
-    blur = cv2.GaussianBlur(im,(params['blurKernel'], params['blurKernel']),0)
-    ret,th = cv2.threshold(blur, params['threshLow'], params['threshHigh'],cv2.THRESH_BINARY)
-    contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    im = cv2.medianBlur(im,params['blurKernel'])
+    ret,th = cv2.threshold(im, params['threshLow'], params['threshHigh'],cv2.THRESH_BINARY)
+    im2, contours, hierarchy = cv2.findContours(th, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
     #print len(contours)
     try:
         contours = sorted(contours, key = cv2.contourArea)[-10:]
@@ -132,13 +116,34 @@ def getImContours(args):
     except:
         pass
     if contour==[]:
+        #print("no contour detected")
         contour.append([args[0],  [], args[3]])
     return contour
 
+def imReadNCnt(args):
+    '''
+    input: 
+        args[0] = path of the image to be read
+        args[1] = parameters using which the image will be processed for contour detection
+    output:
+        im = array of the image read
+        cnt = detected contour from the image "im"
+
+    im = cv2.imread(x[0], cv2.IMREAD_GRAYSCALE)
+    cnt = getImContours((im, x[1]))
+    return [im, cnt]
+
+    '''
+    im = cv2.imread(args[0], cv2.IMREAD_GRAYSCALE)
+    cnt = getImContours((args[0], im, args[1], args[2]))
+    if cnt==[]:
+        return [im]
+    else:
+        return cnt
     
 def getFlycontour(dirname, imExts,
                   contourParams, header,
-                  pool):
+                  workers):
     '''
     tracks the fly using cv2.SimpleBlobDetector method and saves the tracked flies in folders
     '''
@@ -146,13 +151,10 @@ def getFlycontour(dirname, imExts,
     flist = getFiles(dirname, imExts)
     nImsToProcess = len(flist)
     print 'processing %i frames in\n==> %s'%(nImsToProcess, dirname)
+    pool = mp.Pool(processes=workers)
     startTime = time.time()
-    #imgStack = np.array(pool.map(imRead, flist), dtype=np.uint8)
-    imgStack = readImStack(flist)
-    bgIm = getBgIm(imgStack)
-    subIms = getBgSubIms(imgStack, bgIm)
-    poolArgList = itertools.izip(flist, subIms, itertools.repeat(params), np.arange(len(flist)))
-    imgWithCnt = pool.map(getImContours, poolArgList)
+    poolArgList = itertools.izip(flist, itertools.repeat(params), np.arange(len(flist)))
+    imgWithCnt = pool.map(imReadNCnt, poolArgList)
     t = time.time()-startTime
     print("imRead and Contours detection time for %d frames: %s Seconds at %f FPS\n"%(len(imgWithCnt),t ,len(imgWithCnt)/float(t)))
     contoursList = [header]
@@ -168,38 +170,51 @@ def getFlycontour(dirname, imExts,
             contoursList.append([fname, coordX, coordY, minorAxis, majorAxis, angle, area,])
         else:
             contoursList.append([fname,0,0,0,0,0,0])
-    
+
     return contoursList
 
 
-
-#baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
-baseDir = '/media/pointgrey/data/flywalk/climbingData/uploaded/'
+baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
+#baseDir = '/media/pointgrey/data/flywalk/climbingData/uploaded/'
 #baseDir = getFolder(baseDir)
 
 try:
     baseDir = sys.argv[1]
 except:
-    #baseDir = '/media/pointgrey/data/flywalk/'
+    baseDir = '/media/pointgrey/data/flywalk/'
     baseDir = getFolder(baseDir)
     pass
 os.chdir(baseDir)
 
 imExtensions = ['*.png', '*.jpeg']
 imDataFolder = 'imageData'
-statsfName = 'contoursStats_threshBinary'
+statsfName = 'contoursStats'
 statsFileHeader = ['frameDetails','x-coord','y-coord','minorAxis (px)','majorAxis (px)','angle','area (px)']
 
-nThreads = 1
-pool = mp.Pool(processes=nThreads)
+nThreads = 4
+#nImThresh = 100
+
+params = {} # dict for holding parameter values for contour detection
+params['blurKernel'] = 5
+params['block'] = 123
+params['cutoff'] = 15
+
+
+params['threshLow'] = 
+params['threshHigh'] = 
+params['ellaxisRatioMin'] = 0.2
+params['ellaxisRatioMax'] = 0.5
+params['flyareaMin'] = 300 
+params['flyareaMax'] = 900 
+
 
 rawdirs = natural_sort([ name for name in os.listdir(baseDir) if os.path.isdir(os.path.join(baseDir, name)) ])
+
 for idx, rawDir in enumerate(rawdirs):
-    dirs = natural_sort([ os.path.join(rawDir, imDataFolder, name) for name in os.listdir(os.path.join(rawDir, imDataFolder))\
-                        if os.path.isdir(os.path.join(rawDir, imDataFolder, name)) ])
+    dirs = natural_sort([ os.path.join(rawDir, imDataFolder, name) for name in os.listdir(os.path.join(rawDir, imDataFolder)) if os.path.isdir(os.path.join(rawDir, imDataFolder, name)) ])
     for _,imFolder in enumerate(dirs):
         if 'tracked' not in imFolder:
-            flyContours = getFlycontour(imFolder, imExtensions, params, statsFileHeader, pool)
+            flyContours = getFlycontour(imFolder, imExtensions, params, statsFileHeader, nThreads)
             statsFile = imFolder.rstrip('/')+'_'+statsfName+'_'+rawDir+'.csv'
             with open(statsFile, "w") as f:
                 writer = csv.writer(f)
@@ -212,47 +227,24 @@ for idx, rawDir in enumerate(rawdirs):
 
 
 
-#initialDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/tmp_20171201_195931_CS_20171128_0245_11-Climbing_male/imageData/'
-#dirName = getFolder(initialDir)
-#
-#imExtensions = ['*.png', '*.jpeg']
-#
-#pool = mp.Pool(processes=nThreads)
-#
-#flist = getFiles(dirName, imExtensions)
-#start = time.time()
-#imgStack = np.array(pool.map(imRead, flist), dtype=np.uint8)
-#print("\nimRead time for %s core: %.5s Seconds\n"%(nThreads,(time.time()-start)))
-#
-#start = time.time()
-#bgIm = getBgIm(imgStack)
-#print('time used for calculating Bg image = %f'%(time.time()-start))
-#start = time.time()
-#subIms = getBgSubIms(imgStack, bgIm)
-#print('time used for subtracting Images = %f'%(time.time()-start))
-#
-#cntIms = subIms.copy()
-#colCntImgs = []
-#noCnt = []
-#for i,img in enumerate(cntIms):
-#    colImg = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-#    blur = cv2.GaussianBlur(img,(params['blurKernel'], params['blurKernel']),0)
-#    ret,thresh = cv2.threshold(blur, params['threshLow'], params['threshHigh'],cv2.THRESH_BINARY)
-#    cv2.imshow('123',thresh)
-#    cv2.waitKey(1)
-#    im2, contours, hierarchy = cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
-#    try:
-#        contours = sorted(contours, key = cv2.contourArea)[-10:]
-#        ellRatio = [(float(cv2.fitEllipse(cnt)[1][0])/cv2.fitEllipse(cnt)[1][1], cv2.contourArea(cnt), cnt) for cnt in contours ]
-#        for cnt in ellRatio:
-#            if params['ellaxisRatioMin']<cnt[0]<params['ellaxisRatioMax'] and params['flyareaMin']<cnt[1]<params['flyareaMax']:
-#                cv2.drawContours(colImg, [cnt[2]], 0, (0,255,0), 1)
-#                colCntImgs.append(colImg)
-#    except:
-#        noCnt.append(i)
-#cv2.destroyAllWindows()
-#
-#print noCnt
-#displayImgs(colCntImgs, 110)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

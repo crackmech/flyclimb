@@ -53,10 +53,10 @@ threshTrackDur = 50     # threshold of track duration, in number of frames
 threshTrackLen = 1      # in BLU
 #---- declared all the hyperparameters above ----#
 
-baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
-csvExt = ['*contoursStats_tmp*.csv']
-#baseDir = '/media/pointgrey/data/flywalk/'
-#csvExt = ['*contoursStats_threshBinary_*.csv']
+#baseDir = '/media/aman/data/flyWalk_data/tmp_climbing/CS1/'
+#csvExt = ['*contoursStats_tmp*.csv']
+baseDir = '/media/pointgrey/data/flywalk/'
+csvExt = ['*contoursStats_threshBinary_*.csv']
 baseDir = bf.getFolder(baseDir)
 
 dirs = bf.getDirList(baseDir)
