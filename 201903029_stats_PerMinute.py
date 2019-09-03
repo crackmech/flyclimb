@@ -86,6 +86,22 @@ nparLD.ld_f1(pandas2ri.py2ri(dat['result']),
             })
 
 
+https://rpsychologist.com/r-guide-longitudinal-lme-lmer
+
+#http://r.789695.n4.nabble.com/Repeated-Measures-ANOVA-and-Missing-Values-in-the-data-set-td4708855.html
+http://dwoll.de/rexrepos/posts/anovaMixed.html
+library(nlme)
+lmeFit <- lme(Y ~ Xw1, random=~1 | id, method="ML", data=d1))
+library(multcomp)
+contr <- glht(lmeFit, linfct=mcp(Xw1="Tukey"))
+summary(contr)
+
+dataP=subset(data, genotype=='Park25xLrrk-ex1')
+dataP$timePoint <- as.factor(dataP$timePoint)
+statModel = lmer(result ~ timePoint + (1 | flyNumber), data=dataP)
+contr <- glht(statModel, linfct=mcp(timePoint="Tukey"))
+summary(contr)
+
 between groups, single timepoint: nparcomp.mctp(weight ~dosage, data=liver, asy.method = "fisher",
         type = "Tukey", alternative = "two.sided", plot.simci = FALSE,
         info = FALSE)
@@ -205,13 +221,8 @@ for fig in figList:
                 pooledTotalDataTmSrs[genotype] = pldTotalData[3]
     
     genotypes = pooledTotalDataTmSrs.keys()
-    gtTmptList = []
-    tmPts = [str(i+1) for i in xrange(nTmpts)]
-    for r in itertools.product(genotypes, tmPts):
-        gtTmptList.append(r[0] + '_tmPt' + r[1])
-    gtTmptMatrix = []
-    gtTmptMatrix.extend(itertools.combinations(gtTmptList,2))
-
+    tmPts = [i for i in xrange(nTmpts)]
+    tmptMatrix = [x for x in itertools.product([tmPts[0]],tmPts)][1:]#[x for x in itertools.product([0],tmPts)]
     for param in pltParamList:
         colId = colIdPooledDict[param]
         print "++++++++++++++++++++++++ tSeries ",colId, param, "++++++++++++++++++++++++"
@@ -241,11 +252,10 @@ for fig in figList:
         pdWald = r_matrix_to_data_frame(ll.rx2('Wald.test'), getLabels = True)
         pdAnova = r_matrix_to_data_frame(ll.rx2('ANOVA.test'), getLabels = True)
         pdPairComp = r_matrix_to_data_frame(ll.rx2('pair.comparison'), getLabels = False)
-        #print ('Wald test\n%r'%pdWald)
-        #print ('ANOVA test\n%r'%pdAnova)
-        #print ('Pariwise Comparison\n%r'%pdPairComp)
-        tmPts = [str(i) for i in xrange(nTmpts)]
-        multiCompsList = []
+        multiComps = {'between': [],
+                      'within': []\
+                      }
+        
         for tmPt in xrange(nTmpts):
             prmValDict = {x:[] for i,x in enumerate(grpLbls)}
             nFly=0
@@ -271,11 +281,33 @@ for fig in figList:
                                               'alternative' : "two.sided",
                                               'info' : 'FALSE'})
             multComp = pandas2ri.ri2py(multiCmp.rx2('Analysis'))
+            multiComps['between'].append([param, tmPt, multComp])
+        for gType in genotypes:
+            for _,tmPtComb in enumerate(tmptMatrix):
+                prmValDict = {x:[] for i,x in enumerate(grpLbls)}
+                print tmPtComb
+                for tmPt in tmPtComb:
+                    data1 = [x[colId] for x in pooledTotalDataTmSrs[gType][tmPt]]
+                    nFlies = len(data1)
+                    prmValDict['result'].extend(data1)
+                    prmValDict['timePoint'].extend([tmPt for x in xrange(nFlies)])
+                    prmValDict['genotype'].extend([gType for x in xrange(nFlies)])
+                    prmValDict['flyNumber'].extend(np.arange(nFlies))
+                dat = pd.DataFrame(prmValDict, columns=grpLbls)
+                ll2 = nparLD.ld_f1(pandas2ri.py2ri(dat['result']),
+                                   pandas2ri.py2ri(dat['timePoint']),\
+                                   pandas2ri.py2ri(dat['flyNumber']),\
+                                   **{'description': 'FALSE',\
+                                   'plot_RTE':'FALSE','order.warning':'FALSE','time.name': 'timePoint'
+                                   })
+                multcompAnova = pandas2ri.ri2py(ll2.rx2('ANOVA.test').rx2('p-value'))
+                print param, gType, tmPtComb[0], tmPtComb[1], bfTrkStats.statsR.p_adjust(multcompAnova, 'bonferroni', len(tmptMatrix))[0]
+                multiComps['within'].append([param, gType, tmPtComb[0], tmPtComb[1], multcompAnova[0],
+                           bfTrkStats.statsR.p_adjust(multcompAnova, 'bonferroni', len(tmptMatrix))[0]])
             print "++++++++++++++++++++++++ tSeries ", fig, colId, param, tmPt,"++++++++++++++++++++++++"
             print pdAnova['p-value']['Group']
             print multComp
 
-            multiCompsList.append([param, tmPt, multComp])
         with open(statsFName, 'a') as f:
             f.write('\nComparing Genotype or/and Time effect for:,%s\n\nDescriptive Stats:\n'%param)
         descStats.to_csv(statsFName, mode='a', header=True)
@@ -290,15 +322,138 @@ for fig in figList:
         pdPairComp.to_csv(statsFName, mode='a', header=True)
         with open(statsFName, 'a') as f:
             f.write('\nPosthoc Comparison\n')
-        for mC in multiCompsList:
+        for mC in multiComps['between']:
             with open(statsFName, 'a') as f:
                 f.write('\nParameter: %s, timePoint: %d\n'%(mC[0], mC[1]))
             mC[-1].to_csv(statsFName, mode='a', header=True)
+        for mC in multiComps['within']:
+            with open(statsFName, 'a') as f:
+                f.write('Parameter: %s, genotype:, %s, comparison timepoints:, %d - %d, p-Value:, %0.5f, p-Value (Bonferroni adjusted):, %0.5f\n'\
+                        %(mC[0], mC[1], mC[2], mC[3], mC[4], mC[5]))
         with open(statsFName, 'a') as f:
-            for x in xrange(10):
+            for x in xrange(12):
                 f.write('-=-=-=-=-=-=-=-=-=-,')
             f.write('\n\n')
+
+
+
+
+
+#print bfTrkStats.statsR.p_adjust(1.800611e-02, 'bonferroni', len(multComp))
+#print multiCmp                
+        
+        
+
+#for fig in figList:
+#    statsFName = baseDir+fig+'_stats_perMin_'+currTime+'.csv'
+#    figGenotypes = list(set([f.split(os.sep)[1].split('_')[-1] for f in figFoldersList[fig]]))
+#    pooledTotalDataTmSrs = {}
+#    for genotype in figGenotypes:
+#        for i_,d in enumerate(csvDirs):
+#            if genotype == d.split(os.sep)[-1]:
+#                print ('---Processing for Genotype: %s'%genotype)
+#                figFoldList = [os.path.join(d,folder.split(os.sep)[-1].rstrip('\n')) for folder in figFoldersList[fig] if genotype in folder]
+#                pldTotalData = bfTrkStats.pooledData(d, figFoldList, csvExt, unitTimeDur, threshTrackTime,
+#                                                      threshTrackLenMulti, inCsvHeader, headerRowId,
+#                                                      colIdPooledDict, sexColors, pltParamList)
+#                pooledTotalDataTmSrs[genotype] = pldTotalData[3]
+#    
+#    genotypes = pooledTotalDataTmSrs.keys()
+#    gtTmptList = []
+#    tmPts = [str(i+1) for i in xrange(nTmpts)]
+#    for r in itertools.product(genotypes, tmPts):
+#        gtTmptList.append(r[0] + '_tmPt' + r[1])
+#    gtTmptMatrix = []
+#    gtTmptMatrix.extend(itertools.combinations(gtTmptList,2))
+#
+#    for param in pltParamList:
+#        colId = colIdPooledDict[param]
+#        print "++++++++++++++++++++++++ tSeries ",colId, param, "++++++++++++++++++++++++"
+#        df1 = pd.DataFrame(columns=grpLbls)
+#        prmValDict = {x:[] for i,x in enumerate(grpLbls)}
+#        nFly=0
+#        for g_,gtype in enumerate(genotypes):
+#            dSets = [[x[colId] for i_,x in enumerate(pooledTotalDataTmSrs[gtype][tmPt])] for tmPt in xrange(nTmpts)]
+#            for i,d in enumerate(dSets):
+#                flyNum = list(np.arange(nFly,nFly+len(d)))
+#                tPts =  list(np.zeros(len(d))+i)
+#                gtypeList = [gtype for x in xrange(len(d))]
+#                dfData = {'result':d, 'timePoint': tPts,'flyNumber': flyNum, 'genotype': gtypeList}
+#                for j,l in enumerate(grpLbls):
+#                    prmValDict[l].extend(dfData[l])
+#            nFly+=len(d)
+#        df = pd.DataFrame(prmValDict, columns=grpLbls)
+#        descStats = pd.DataFrame(pandas2ri.ri2py(fsa.Summarize(statsFormula, data = pandas2ri.py2ri(df))))
+#        ll = nparLD.f1_ld_f1(pandas2ri.py2ri(df['result']),
+#                             pandas2ri.py2ri(df['timePoint']),\
+#                             pandas2ri.py2ri(df['genotype']),\
+#                             pandas2ri.py2ri(df['flyNumber']),
+#                             **{'description': 'FALSE',\
+#                                 'plot_RTE':'FALSE',
+#                                 'order.warning':'FALSE',
+#                                 })
+#        pdWald = r_matrix_to_data_frame(ll.rx2('Wald.test'), getLabels = True)
+#        pdAnova = r_matrix_to_data_frame(ll.rx2('ANOVA.test'), getLabels = True)
+#        pdPairComp = r_matrix_to_data_frame(ll.rx2('pair.comparison'), getLabels = False)
+#        #print ('Wald test\n%r'%pdWald)
+#        #print ('ANOVA test\n%r'%pdAnova)
+#        #print ('Pariwise Comparison\n%r'%pdPairComp)
+#        tmPts = [str(i) for i in xrange(nTmpts)]
+#        multiCompsList = []
+#        for tmPt in xrange(nTmpts):
+#            prmValDict = {x:[] for i,x in enumerate(grpLbls)}
+#            nFly=0
+#            for gType in genotypes:
+#                data1 = [x[colId] for x in pooledTotalDataTmSrs[gType][tmPt]]
+#                nFlies = len(data1)
+#                prmValDict['result'].extend(data1)
+#                prmValDict['timePoint'].extend([tmPt for x in xrange(nFlies)])
+#                prmValDict['genotype'].extend([gType for x in xrange(nFlies)])
+#                prmValDict['flyNumber'].extend(np.arange(nFlies)+nFly)
+#                nFly+=nFlies
+#            dat = pd.DataFrame(prmValDict, columns=grpLbls)
+#            multCompFormula = robjects.Formula('result~genotype')
+#            if len(genotypes)>2:
+#                multiCmp = nparcomp.mctp(multCompFormula, data=pandas2ri.py2ri(dat),
+#                                    **{'asy.method': "mult.t", 'type' : "Tukey",
+#                                    'alternative' : "two.sided", 'plot.simci' : 'FALSE', 
+#                                    'info' : 'FALSE'})
+#            else:
+#                multiCmp = nparcomp.npar_t_test(multCompFormula, 
+#                                           data=pandas2ri.py2ri(dat),\
+#                                           **{'method' : "permu",
+#                                              'alternative' : "two.sided",
+#                                              'info' : 'FALSE'})
+#            multComp = pandas2ri.ri2py(multiCmp.rx2('Analysis'))
+#            print "++++++++++++++++++++++++ tSeries ", fig, colId, param, tmPt,"++++++++++++++++++++++++"
+#            print pdAnova['p-value']['Group']
+#            print multComp
+#
+#            multiCompsList.append([param, tmPt, multComp])
+#        with open(statsFName, 'a') as f:
+#            f.write('\nComparing Genotype or/and Time effect for:,%s\n\nDescriptive Stats:\n'%param)
+#        descStats.to_csv(statsFName, mode='a', header=True)
+#        with open(statsFName, 'a') as f:
+#            f.write('\nWald test statistics (WTS) Output\n')
+#        pdWald.to_csv(statsFName, mode='a', header=True)
+#        with open(statsFName, 'a') as f:
+#            f.write('\nANOVA test statistics (ATS) Output\n')
+#        pdAnova.to_csv(statsFName, mode='a', header=True)
+#        with open(statsFName, 'a') as f:
+#            f.write('\nPairwise Comparison\n')
+#        pdPairComp.to_csv(statsFName, mode='a', header=True)
+#        with open(statsFName, 'a') as f:
+#            f.write('\nPosthoc Comparison\n')
+#        for mC in multiCompsList:
+#            with open(statsFName, 'a') as f:
+#                f.write('\nParameter: %s, timePoint: %d\n'%(mC[0], mC[1]))
+#            mC[-1].to_csv(statsFName, mode='a', header=True)
+#        with open(statsFName, 'a') as f:
+#            for x in xrange(10):
+#                f.write('-=-=-=-=-=-=-=-=-=-,')
+#            f.write('\n\n')
 #        for gType in genotypes:
+#            nFly=0
 #            prmValDict = {x:[] for i,x in enumerate(grpLbls)}
 #            for tmPt in xrange(nTmpts):
 #                data1 = [x[colId] for x in pooledTotalDataTmSrs[gType][tmPt]]
@@ -306,21 +461,29 @@ for fig in figList:
 #                prmValDict['result'].extend(data1)
 #                prmValDict['timePoint'].extend([tmPt for x in xrange(nFlies)])
 #                prmValDict['genotype'].extend([gType for x in xrange(nFlies)])
-#                prmValDict['flyNumber'].extend(np.arange(nFlies))
+#                prmValDict['flyNumber'].extend(np.arange(nFlies)+nFly)
 #            dat = pd.DataFrame(prmValDict, columns=grpLbls)
-#            multCompFormula = robjects.Formula('result~timePoint')
-#            multiCmp = nparcomp.mctp_rm(multCompFormula, data=pandas2ri.py2ri(dat),
-#                                **{'asy.method': "mult.t", 'type' : "Tukey",
-#                                'alternative' : "two.sided", 'plot.simci' : 'FALSE', 
-#                                'info' : 'TRUE'})
-#            multComp = pandas2ri.ri2py(multiCmp.rx2('Analysis'))
-#            print "++++++++++++++++++++++++ tSeries ", fig, colId, param, gType,"++++++++++++++++++++++++"
-#            print pdAnova['p-value']['Group']
-#            print multComp
-#print bfTrkStats.statsR.p_adjust(1.800611e-02, 'bonferroni', len(multComp))
-#print multiCmp                
-        
-        
+#            ll2 = nparLD.ld_f1(pandas2ri.py2ri(dat['result']),
+#                               pandas2ri.py2ri(dat['timePoint']),\
+#                               pandas2ri.py2ri(dat['flyNumber']),\
+#                               **{'description': 'FALSE',\
+#                               'plot_RTE':'FALSE','order.warning':'TRUE','time.name': 'timePoint'
+#                               })
+#            multcompAnova = r_matrix_to_data_frame(ll.rx2('ANOVA.test'), getLabels = True)
+#            print gType, multcompAnova
+##            multCompFormula = robjects.Formula('result~timePoint')
+##            multiCmp = nparcomp.mctp_rm(multCompFormula, data=pandas2ri.py2ri(dat),
+##                                **{'asy.method': "mult.t", 'type' : "Tukey",
+##                                'alternative' : "two.sided", 'plot.simci' : 'FALSE', 
+##                                'info' : 'TRUE'})
+##            multComp = pandas2ri.ri2py(multiCmp.rx2('Analysis'))
+##            print "++++++++++++++++++++++++ tSeries ", fig, colId, param, gType,"++++++++++++++++++++++++"
+##            print pdAnova['p-value']['Group']
+##            print multComp
+##print bfTrkStats.statsR.p_adjust(1.800611e-02, 'bonferroni', len(multComp))
+##print multiCmp                
+#        
+#        
 
 """
 

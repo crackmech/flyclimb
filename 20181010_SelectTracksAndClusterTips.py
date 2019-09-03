@@ -477,7 +477,7 @@ def fixFrNames(frNameList, dirname):
     return [os.path.join(dirname,os.sep.join(x.split(os.sep)[-4:])) for x in frNameList]
 
 initDir = '/media/aman/data/flyWalk_data/climbingData/gait/allData/'
-initDir = '/media/aman/easystore/data_legTracking/'
+#initDir = '/media/aman/easystore/data_legTracking/'
 #initDir = '/media/pointgrey/data/flywalk/legTracking/'
 
 

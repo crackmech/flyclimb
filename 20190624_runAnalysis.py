@@ -22,8 +22,8 @@ from scipy.stats import ttest_ind
 import csv
 sys.path.append('HTML/')
 from HTML import table
-
-
+from baseFunctions import present_time as presTm
+import numpy as np
 
 # Leg order
 legs = ['L1', 'R1', 'L2', 'R2', 'L3', 'R3']
@@ -144,7 +144,13 @@ def plotMegaBucket(plot_type, entities, datasets, MegaBucket, ylimspec=None, lab
 def filledBucket(bucket, entities, func):
     # fill the bucket
     for entity in entities:
-            bucket[entity].extend(func(entity))
+        if len(func(entity))>1:
+            entityData = [np.median(func(entity))]
+            #entityData = [np.mean(func(entity))]
+        else:
+            entityData = func(entity)
+        bucket[entity].extend(entityData)
+            #bucket[entity].extend([np.median(func(entity))])
     # return the bucket
     return bucket
 
@@ -203,9 +209,7 @@ def makePlotFor(param):
 
         holder = [[] for k in range(len(specs[param]['ENTITIES']))]
         bucket = dict(zip(specs[param]['ENTITIES'], holder))
-        
         for stack_name in stack_names:
-            print "===Stack Name ==", stack_name,"====="
             ana = Analyze(pjoin(path, stack_name))
             
             funcky = {
@@ -251,12 +255,16 @@ plots = ['WALK_SPEED', 'SWING_AMPLITUDE', 'SWING_DURATION', 'STANCE_AMPLITUDE', 
         'AEPx', 'PEPx', 'LEG_BODY_ANGLE', 'AEA', 'PEA', 'CCI', 'ICI', \
         'STOLEN_SWINGS','CONCURRENCY']
 #plots = ['WALK_SPEED', 'SWING_AMPLITUDE', 'AEPx', 'PEPx']
+plots = ['WALK_SPEED', 'CONCURRENCY',
+         'SWING_AMPLITUDE', 'SWING_DURATION',
+         'STANCE_AMPLITUDE', 'STANCE_DURATION']
 #plots = ['SWING_AMPLITUDE']
 #plots = ['PEA']
 #plots = ['CONCURRENCY']
 ##print 'MegaBucket >>', megabucket
 
 data = []
+startTm = presTm()
 for plot in plots:
     print "======>",plot
     data.append(makePlotFor(plot))
