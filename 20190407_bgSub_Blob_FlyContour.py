@@ -205,7 +205,7 @@ for idx, rawDir in enumerate(rawdirs):
                 writer = csv.writer(f)
                 writer.writerows(flyContours)
 
-
+print ('Finished image processing on %s'%present_time())
 
 
 
